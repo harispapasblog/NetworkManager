@@ -105,6 +105,8 @@ typedef struct _NMIP4ConfigClass NMIP4ConfigClass;
 
 GType nm_ip4_config_get_type(void);
 
+NMIP4Config *nm_ip4_config_new_l3cfg(NML3Cfg *l3cfg);
+
 NMIP4Config *nm_ip4_config_new(NMDedupMultiIndex *multi_idx, int ifindex);
 
 NMIP4Config *nm_ip4_config_clone(const NMIP4Config *self);

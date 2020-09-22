@@ -42,8 +42,6 @@ enum NMActStageReturn {
 
 #define NM_DEVICE_CAP_INTERNAL_MASK 0xc0000000
 
-void nm_device_arp_announce(NMDevice *self);
-
 NMSettings *nm_device_get_settings(NMDevice *self);
 
 NMManager *nm_device_get_manager(NMDevice *self);
@@ -74,8 +72,7 @@ void nm_device_set_firmware_missing(NMDevice *self, gboolean missing);
 void nm_device_activate_schedule_stage1_device_prepare(NMDevice *device, gboolean do_sync);
 void nm_device_activate_schedule_stage2_device_config(NMDevice *device, gboolean do_sync);
 
-void
-nm_device_activate_schedule_ip_config_result(NMDevice *device, int addr_family, NMIPConfig *config);
+void nm_device_activate_schedule_ip_config_result(NMDevice *device, int addr_family);
 
 void nm_device_activate_schedule_ip_config_timeout(NMDevice *device, int addr_family);
 
@@ -119,8 +116,7 @@ nm_device_activate_ip6_state_done(NMDevice *self)
 
 void nm_device_set_dhcp_anycast_address(NMDevice *device, const char *addr);
 
-gboolean nm_device_dhcp4_renew(NMDevice *device, gboolean release);
-gboolean nm_device_dhcp6_renew(NMDevice *device, gboolean release);
+gboolean nm_device_dhcp_renew(NMDevice *device, int addr_family, gboolean release);
 
 void nm_device_recheck_available_connections(NMDevice *device);
 
@@ -136,7 +132,7 @@ void nm_device_queue_recheck_available(NMDevice *          device,
                                        NMDeviceStateReason available_reason,
                                        NMDeviceStateReason unavailable_reason);
 
-void nm_device_set_dev2_ip_config(NMDevice *device, int addr_family, NMIPConfig *config);
+void nm_device_set_dev2_ip_config(NMDevice *device, int addr_family, const NML3ConfigData *l3cd);
 
 gboolean nm_device_hw_addr_is_explict(NMDevice *device);
 
@@ -147,11 +143,7 @@ gboolean nm_device_sysctl_ip_conf_set(NMDevice *  self,
                                       const char *property,
                                       const char *value);
 
-NMIP4Config *nm_device_ip4_config_new(NMDevice *self);
-
-NMIP6Config *nm_device_ip6_config_new(NMDevice *self);
-
-NMIPConfig *nm_device_ip_config_new(NMDevice *self, int addr_family);
+NML3ConfigData *nm_device_create_l3_config_data(NMDevice *self);
 
 NML3ConfigData *nm_device_create_l3_config_data(NMDevice *self);
 

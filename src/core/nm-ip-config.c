@@ -48,8 +48,8 @@ set_property(GObject *object, guint prop_id, const GValue *value, GParamSpec *ps
     switch (prop_id) {
     case PROP_L3CFG:
         /* construct-only */
-        priv->l3cfg = nm_g_object_ref(g_value_get_pointer(value));
-        nm_assert(!priv->l3cfg || NM_IS_L3CFG(priv->l3cfg));
+        priv->l3cfg = g_object_ref(g_value_get_pointer(value));
+        nm_assert(NM_IS_L3CFG(priv->l3cfg));
         break;
     case PROP_IS_VPN:
         /* construct-only */
@@ -94,7 +94,7 @@ finalize(GObject *object)
     NMIPConfig *       self = NM_IP_CONFIG(object);
     NMIPConfigPrivate *priv = NM_IP_CONFIG_GET_PRIVATE(self);
 
-    nm_g_object_unref(priv->l3cfg);
+    g_object_unref(priv->l3cfg);
 
     G_OBJECT_CLASS(nm_ip_config_parent_class)->finalize(object);
 }

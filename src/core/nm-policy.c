@@ -1039,10 +1039,14 @@ get_best_ip_config(NMPolicy *           self,
 
         nm_assert(device);
 
+        /* FIXME(l3cfg) */
+        conf = NULL;
+#if 0
         if (addr_family == AF_INET)
             conf = nm_device_get_ip4_config(device);
         else
             conf = nm_device_get_ip6_config(device);
+#endif
 
         NM_SET_OUT(out_device, device);
         NM_SET_OUT(out_vpn, NULL);
@@ -1906,9 +1910,7 @@ device_state_changed(NMDevice *          device,
     NMPolicy *            self = _PRIV_TO_SELF(priv);
     NMActiveConnection *  ac;
     NMSettingsConnection *sett_conn = nm_device_get_settings_connection(device);
-    NMIP4Config *         ip4_config;
-    NMIP6Config *         ip6_config;
-    NMSettingConnection * s_con = NULL;
+    NMSettingConnection * s_con     = NULL;
 
     switch (nm_device_state_reason_check(reason)) {
     case NM_DEVICE_STATE_REASON_GSM_SIM_PIN_REQUIRED:
@@ -2015,6 +2017,8 @@ device_state_changed(NMDevice *          device,
 
         nm_dns_manager_begin_updates(priv->dns_manager, __func__);
 
+        /* FIXME(l3cfg) */
+#if 0
         ip4_config = nm_device_get_ip4_config(device);
         if (ip4_config)
             _dns_manager_set_ip_config(priv->dns_manager,
@@ -2027,6 +2031,7 @@ device_state_changed(NMDevice *          device,
                                        NM_IP_CONFIG_CAST(ip6_config),
                                        NM_DNS_IP_CONFIG_TYPE_DEFAULT,
                                        device);
+#endif
 
         update_routing_and_dns(self, FALSE, device);
 

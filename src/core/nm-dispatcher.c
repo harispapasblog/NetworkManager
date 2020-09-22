@@ -16,8 +16,7 @@
 #include "devices/nm-device.h"
 #include "nm-dhcp-config.h"
 #include "nm-proxy-config.h"
-#include "nm-ip4-config.h"
-#include "nm-ip6-config.h"
+#include "nm-l3-config-data.h"
 #include "nm-manager.h"
 #include "settings/nm-settings-connection.h"
 #include "libnm-platform/nm-platform.h"
@@ -167,31 +166,30 @@ dump_proxy_to_props(NMProxyConfig *proxy, GVariantBuilder *builder)
 }
 
 static void
-dump_ip_to_props(NMIPConfig *ip, GVariantBuilder *builder)
+dump_ip_to_props(const NML3ConfigData *l3cd, int addr_family, GVariantBuilder *builder)
 {
-    const int        addr_family = nm_ip_config_get_addr_family(ip);
-    const int        IS_IPv4     = NM_IS_IPv4(addr_family);
-    const NMPObject *obj;
-    GVariantBuilder  int_builder;
-    NMDedupMultiIter ipconf_iter;
-    GVariant *       var1;
-    GVariant *       var2;
-    guint            n;
-    guint            i;
-    const NMPObject *default_route;
+    const int          IS_IPv4 = NM_IS_IPv4(addr_family);
+    const NMPObject *  obj;
+    GVariantBuilder    int_builder;
+    NMDedupMultiIter   ipconf_iter;
+    GVariant *         var1;
+    GVariant *         var2;
+    guint              n;
+    guint              i;
+    const NMPObject *  default_route;
+    const char *const *strarr;
+    const in_addr_t *  ip4arr;
+    gconstpointer      iparr;
 
     if (IS_IPv4)
         g_variant_builder_init(&int_builder, G_VARIANT_TYPE("aau"));
     else
         g_variant_builder_init(&int_builder, G_VARIANT_TYPE("a(ayuay)"));
-    default_route = nm_ip_config_best_default_route_get(ip);
-    if (IS_IPv4)
-        nm_ip_config_iter_ip4_address_init(&ipconf_iter, NM_IP4_CONFIG(ip));
-    else
-        nm_ip_config_iter_ip6_address_init(&ipconf_iter, NM_IP6_CONFIG(ip));
-    while (nm_platform_dedup_multi_iter_next_obj(&ipconf_iter,
-                                                 &obj,
-                                                 NMP_OBJECT_TYPE_IP_ADDRESS(IS_IPv4))) {
+    default_route = nm_l3_config_data_get_best_default_route(l3cd, addr_family);
+    nm_l3_config_data_iter_obj_for_each (&ipconf_iter,
+                                         l3cd,
+                                         &obj,
+                                         NMP_OBJECT_TYPE_IP_ADDRESS(IS_IPv4)) {
         const NMPlatformIPXAddress *addr = NMP_OBJECT_CAST_IPX_ADDRESS(obj);
 
         if (IS_IPv4) {
@@ -225,30 +223,28 @@ dump_ip_to_props(NMIPConfig *ip, GVariantBuilder *builder)
         g_variant_builder_init(&int_builder, G_VARIANT_TYPE("au"));
     else
         g_variant_builder_init(&int_builder, G_VARIANT_TYPE("aay"));
-    n = nm_ip_config_get_num_nameservers(ip);
+    iparr = nm_l3_config_data_get_nameservers(l3cd, addr_family, &n);
     for (i = 0; i < n; i++) {
-        if (IS_IPv4) {
-            g_variant_builder_add(&int_builder,
-                                  "u",
-                                  nm_ip4_config_get_nameserver(NM_IP4_CONFIG(ip), i));
-        } else {
-            var1 = nm_g_variant_new_ay_in6addr(nm_ip6_config_get_nameserver(NM_IP6_CONFIG(ip), i));
+        if (IS_IPv4)
+            g_variant_builder_add(&int_builder, "u", ((const in_addr_t *) iparr)[i]);
+        else {
+            var1 = nm_g_variant_new_ay_in6addr(&(((const struct in6_addr *) iparr)[i]));
             g_variant_builder_add(&int_builder, "@ay", var1);
         }
     }
     g_variant_builder_add(builder, "{sv}", "nameservers", g_variant_builder_end(&int_builder));
 
     g_variant_builder_init(&int_builder, G_VARIANT_TYPE("as"));
-    n = nm_ip_config_get_num_domains(ip);
+    strarr = nm_l3_config_data_get_domains(l3cd, addr_family, &n);
     for (i = 0; i < n; i++)
-        g_variant_builder_add(&int_builder, "s", nm_ip_config_get_domain(ip, i));
+        g_variant_builder_add(&int_builder, "s", strarr[i]);
     g_variant_builder_add(builder, "{sv}", "domains", g_variant_builder_end(&int_builder));
 
     if (IS_IPv4) {
         g_variant_builder_init(&int_builder, G_VARIANT_TYPE("au"));
-        n = nm_ip4_config_get_num_wins(NM_IP4_CONFIG(ip));
+        ip4arr = nm_l3_config_data_get_wins(l3cd, &n);
         for (i = 0; i < n; i++)
-            g_variant_builder_add(&int_builder, "u", nm_ip4_config_get_wins(NM_IP4_CONFIG(ip), i));
+            g_variant_builder_add(&int_builder, "u", ip4arr[i]);
         g_variant_builder_add(builder, "{sv}", "wins-servers", g_variant_builder_end(&int_builder));
     }
 
@@ -256,13 +252,10 @@ dump_ip_to_props(NMIPConfig *ip, GVariantBuilder *builder)
         g_variant_builder_init(&int_builder, G_VARIANT_TYPE("aau"));
     else
         g_variant_builder_init(&int_builder, G_VARIANT_TYPE("a(ayuayu)"));
-    if (IS_IPv4)
-        nm_ip_config_iter_ip4_route_init(&ipconf_iter, NM_IP4_CONFIG(ip));
-    else
-        nm_ip_config_iter_ip6_route_init(&ipconf_iter, NM_IP6_CONFIG(ip));
-    while (nm_platform_dedup_multi_iter_next_obj(&ipconf_iter,
-                                                 &obj,
-                                                 NMP_OBJECT_TYPE_IP_ROUTE(IS_IPv4))) {
+    nm_l3_config_data_iter_obj_for_each (&ipconf_iter,
+                                         l3cd,
+                                         &obj,
+                                         NMP_OBJECT_TYPE_IP_ROUTE(IS_IPv4)) {
         const NMPlatformIPXRoute *route = NMP_OBJECT_CAST_IPX_ROUTE(obj);
 
         if (NM_PLATFORM_IP_ROUTE_IS_DEFAULT(route))
@@ -299,10 +292,9 @@ fill_device_props(NMDevice *       device,
                   GVariant **      dhcp4_props,
                   GVariant **      dhcp6_props)
 {
-    NMProxyConfig *proxy_config;
-    NMIP4Config *  ip4_config;
-    NMIP6Config *  ip6_config;
-    NMDhcpConfig * dhcp_config;
+    const NML3ConfigData *l3cd;
+    NMProxyConfig *       proxy_config;
+    NMDhcpConfig *        dhcp_config;
 
     /* If the action is for a VPN, send the VPN's IP interface instead of the device's */
     g_variant_builder_add(dev_builder,
@@ -333,13 +325,11 @@ fill_device_props(NMDevice *       device,
     if (proxy_config)
         dump_proxy_to_props(proxy_config, proxy_builder);
 
-    ip4_config = nm_device_get_ip4_config(device);
-    if (ip4_config)
-        dump_ip_to_props(NM_IP_CONFIG(ip4_config), ip4_builder);
-
-    ip6_config = nm_device_get_ip6_config(device);
-    if (ip6_config)
-        dump_ip_to_props(NM_IP_CONFIG(ip6_config), ip6_builder);
+    l3cd = nm_device_get_l3cd(device, TRUE);
+    if (l3cd) {
+        dump_ip_to_props(l3cd, AF_INET, ip4_builder);
+        dump_ip_to_props(l3cd, AF_INET6, ip6_builder);
+    }
 
     dhcp_config = nm_device_get_dhcp_config(device, AF_INET);
     if (dhcp_config)
@@ -351,19 +341,18 @@ fill_device_props(NMDevice *       device,
 }
 
 static void
-fill_vpn_props(NMProxyConfig *  proxy_config,
-               NMIP4Config *    ip4_config,
-               NMIP6Config *    ip6_config,
-               GVariantBuilder *proxy_builder,
-               GVariantBuilder *ip4_builder,
-               GVariantBuilder *ip6_builder)
+fill_vpn_props(NMProxyConfig *       proxy_config,
+               const NML3ConfigData *l3cd,
+               GVariantBuilder *     proxy_builder,
+               GVariantBuilder *     ip4_builder,
+               GVariantBuilder *     ip6_builder)
 {
     if (proxy_config)
         dump_proxy_to_props(proxy_config, proxy_builder);
-    if (ip4_config)
-        dump_ip_to_props(NM_IP_CONFIG(ip4_config), ip4_builder);
-    if (ip6_config)
-        dump_ip_to_props(NM_IP_CONFIG(ip6_config), ip6_builder);
+    if (l3cd) {
+        dump_ip_to_props(l3cd, AF_INET, ip4_builder);
+        dump_ip_to_props(l3cd, AF_INET6, ip6_builder);
+    }
 }
 
 static const char *
@@ -480,8 +469,7 @@ _dispatcher_call(NMDispatcherAction    action,
                  NMConnectivityState   connectivity_state,
                  const char *          vpn_iface,
                  NMProxyConfig *       vpn_proxy_config,
-                 NMIP4Config *         vpn_ip4_config,
-                 NMIP6Config *         vpn_ip6_config,
+                 const NML3ConfigData *l3cd,
                  NMDispatcherFunc      callback,
                  gpointer              user_data,
                  NMDispatcherCallId ** out_call_id)
@@ -593,10 +581,9 @@ _dispatcher_call(NMDispatcherAction    action,
                           &device_ip6_props,
                           &device_dhcp4_props,
                           &device_dhcp6_props);
-        if (vpn_ip4_config || vpn_ip6_config) {
+        if (l3cd) {
             fill_vpn_props(vpn_proxy_config,
-                           vpn_ip4_config,
-                           vpn_ip6_config,
+                           l3cd,
                            &vpn_proxy_props,
                            &vpn_ip4_props,
                            &vpn_ip6_props);
@@ -694,7 +681,6 @@ nm_dispatcher_call_hostname(NMDispatcherFunc     callback,
                             NULL,
                             NULL,
                             NULL,
-                            NULL,
                             callback,
                             user_data,
                             out_call_id);
@@ -745,7 +731,6 @@ nm_dispatcher_call_device(NMDispatcherAction   action,
         NULL,
         NULL,
         NULL,
-        NULL,
         callback,
         user_data,
         out_call_id);
@@ -791,7 +776,6 @@ nm_dispatcher_call_device_sync(NMDispatcherAction action,
         NULL,
         NULL,
         NULL,
-        NULL,
         NULL);
 }
 
@@ -803,8 +787,7 @@ nm_dispatcher_call_device_sync(NMDispatcherAction action,
  * @parent_device: the parent #NMDevice of the VPN connection
  * @vpn_iface: the IP interface of the VPN tunnel, if any
  * @vpn_proxy_config: the #NMProxyConfig of the VPN connection
- * @vpn_ip4_config: the #NMIP4Config of the VPN connection
- * @vpn_ip6_config: the #NMIP6Config of the VPN connection
+ * @vpn_l3cd: the #NML3ConfigData of the VPN connection
  * @callback: a caller-supplied callback to execute when done
  * @user_data: caller-supplied pointer passed to @callback
  * @out_call_id: on success, a call identifier which can be passed to
@@ -822,8 +805,7 @@ nm_dispatcher_call_vpn(NMDispatcherAction    action,
                        NMDevice *            parent_device,
                        const char *          vpn_iface,
                        NMProxyConfig *       vpn_proxy_config,
-                       NMIP4Config *         vpn_ip4_config,
-                       NMIP6Config *         vpn_ip6_config,
+                       const NML3ConfigData *l3cd,
                        NMDispatcherFunc      callback,
                        gpointer              user_data,
                        NMDispatcherCallId ** out_call_id)
@@ -837,8 +819,7 @@ nm_dispatcher_call_vpn(NMDispatcherAction    action,
                             NM_CONNECTIVITY_UNKNOWN,
                             vpn_iface,
                             vpn_proxy_config,
-                            vpn_ip4_config,
-                            vpn_ip6_config,
+                            l3cd,
                             callback,
                             user_data,
                             out_call_id);
@@ -852,8 +833,7 @@ nm_dispatcher_call_vpn(NMDispatcherAction    action,
  * @parent_device: the parent #NMDevice of the VPN connection
  * @vpn_iface: the IP interface of the VPN tunnel, if any
  * @vpn_proxy_config: the #NMProxyConfig of the VPN connection
- * @vpn_ip4_config: the #NMIP4Config of the VPN connection
- * @vpn_ip6_config: the #NMIP6Config of the VPN connection
+ * @vpn_l3cd: the #NML3ConfigData of the VPN connection
  *
  * This method always invokes the dispatcher action synchronously and it may
  * take a long time to return.
@@ -867,8 +847,7 @@ nm_dispatcher_call_vpn_sync(NMDispatcherAction    action,
                             NMDevice *            parent_device,
                             const char *          vpn_iface,
                             NMProxyConfig *       vpn_proxy_config,
-                            NMIP4Config *         vpn_ip4_config,
-                            NMIP6Config *         vpn_ip6_config)
+                            const NML3ConfigData *l3cd)
 {
     return _dispatcher_call(action,
                             TRUE,
@@ -879,8 +858,7 @@ nm_dispatcher_call_vpn_sync(NMDispatcherAction    action,
                             NM_CONNECTIVITY_UNKNOWN,
                             vpn_iface,
                             vpn_proxy_config,
-                            vpn_ip4_config,
-                            vpn_ip6_config,
+                            l3cd,
                             NULL,
                             NULL,
                             NULL);
@@ -911,7 +889,6 @@ nm_dispatcher_call_connectivity(NMConnectivityState  connectivity_state,
                             NULL,
                             FALSE,
                             connectivity_state,
-                            NULL,
                             NULL,
                             NULL,
                             NULL,

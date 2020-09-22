@@ -8,7 +8,6 @@
 #define __NETWORKMANAGER_DHCP_MANAGER_H__
 
 #include "nm-dhcp-client.h"
-#include "nm-ip4-config.h"
 #include "nm-dhcp-config.h"
 
 #define NM_TYPE_DHCP_MANAGER (nm_dhcp_manager_get_type())
@@ -39,9 +38,15 @@ NMDhcpClient *nm_dhcp_manager_start_ip4(NMDhcpManager *            manager,
                                         GBytes *                   hwaddr,
                                         GBytes *                   bcast_hwaddr,
                                         const char *               uuid,
+<<<<<<< HEAD
                                         guint32                    route_table,
                                         guint32                    route_metric,
                                         NMDhcpClientFlags          client_flags,
+||||||| parent of a2bf185ef259 (core: use NML3ConfigData (WIP))
+                                        guint32                    route_table,
+                                        guint32                    route_metric,
+=======
+>>>>>>> a2bf185ef259 (core: use NML3ConfigData (WIP))
                                         gboolean                   send_hostname,
                                         const char *               dhcp_hostname,
                                         const char *               dhcp_fqdn,
@@ -61,9 +66,15 @@ NMDhcpClient *nm_dhcp_manager_start_ip6(NMDhcpManager *            manager,
                                         int                        ifindex,
                                         const struct in6_addr *    ll_addr,
                                         const char *               uuid,
+<<<<<<< HEAD
                                         guint32                    route_table,
                                         guint32                    route_metric,
                                         NMDhcpClientFlags          client_flags,
+||||||| parent of a2bf185ef259 (core: use NML3ConfigData (WIP))
+                                        guint32                    route_table,
+                                        guint32                    route_metric,
+=======
+>>>>>>> a2bf185ef259 (core: use NML3ConfigData (WIP))
                                         gboolean                   send_hostname,
                                         const char *               dhcp_hostname,
                                         NMDhcpHostnameFlags        hostname_flags,
