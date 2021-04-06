@@ -10,11 +10,11 @@ extend and more correct.
 Current Situation
 -----------------
 
-- [NMManager](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/af360238be198257934b89d42f24431401550721/src/core/nm-manager.c):
+- [NMManager](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/6b64fac06d2f6e0d9fa530ebb1ab28d53a1c5d03/src/core/nm-manager.c):
   this is the main object (a singleton) that drives most things.
   Among many other things, it creates NMDevice instances and coordinates.
 
-- [NMDevice](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/af360238be198257934b89d42f24431401550721/src/core/devices/nm-device.c):
+- [NMDevice](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/6b64fac06d2f6e0d9fa530ebb1ab28d53a1c5d03/src/core/devices/nm-device.c):
   this represents a device. This is a subclass of NMDBusObject,
   it is thus directly exported on D-Bus (as D-Bus objects like
   `/org/freedesktop/NetworkManager/Devices/1`).
@@ -32,7 +32,7 @@ Current Situation
   managed by the parent class. Which is good, because the IP configuration is common to all
   device types, but is bad because NMDevice already does so many things.
 
-- [NMIP4Config](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/af360238be198257934b89d42f24431401550721/src/core/nm-ip4-config.c) (and NMIP6Config):
+- [NMIP4Config](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/6b64fac06d2f6e0d9fa530ebb1ab28d53a1c5d03/src/core/nm-ip4-config.c) (and NMIP6Config):
   these are also subclasses of NMDBusObject
   and exported on D-Bus on paths like `/org/freedesktop/NetworkManager/IP4Config/1`.
   The device's `IP4Config` property refers to these objects. They contain
@@ -40,15 +40,15 @@ Current Situation
   should exist on the D-Bus API, as NMDevice could directly expose these properties.
   But for historic reasons, such is our D-Bus API.
   Other than that, NMIP4Config objects are also used internally for tracking
-  IP configuration. For example, [when](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/af360238be198257934b89d42f24431401550721/src/core/dhcp/nm-dhcp-nettools.c#L563)
+  IP configuration. For example, [when](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/6b64fac06d2f6e0d9fa530ebb1ab28d53a1c5d03/src/core/dhcp/nm-dhcp-nettools.c#L563)
   we receive a DHCP lease, we construct a NMIP4Config object with the addresses, DNS settings,
   and so on. These
-  instances are then [tracked by](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/af360238be198257934b89d42f24431401550721/src/core/devices/nm-device.c#L519)
-  NMDevice, and [merged](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/af360238be198257934b89d42f24431401550721/src/core/devices/nm-device.c#L8928)
+  instances are then [tracked by](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/6b64fac06d2f6e0d9fa530ebb1ab28d53a1c5d03/src/core/devices/nm-device.c#L519)
+  NMDevice, and [merged](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/6b64fac06d2f6e0d9fa530ebb1ab28d53a1c5d03/src/core/devices/nm-device.c#L8928)
   into an instance that is then exposed on D-Bus. As such, this class has two
   mostly independent purposes.
 
-- [NMDhcpClient](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/af360238be198257934b89d42f24431401550721/src/core/dhcp/nm-dhcp-client.c):
+- [NMDhcpClient](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/6b64fac06d2f6e0d9fa530ebb1ab28d53a1c5d03/src/core/dhcp/nm-dhcp-client.c):
   our DHCP "library". It's a simple object with a clear API that
   abstracts most of the complexity of handling DHCP. But still, NMDevice
   needs to drive the DHCP client instance. Meaning, it needs to create (start) and stop
@@ -62,7 +62,7 @@ Current Situation
 
 ### Problems:
 
-1. first the sheer code size of [nm-device.c](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/af360238be198257934b89d42f24431401550721/src/core/devices/nm-device.c#L19030).
+1. first the sheer code size of [nm-device.c](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/6b64fac06d2f6e0d9fa530ebb1ab28d53a1c5d03/src/core/devices/nm-device.c#L19030).
    It's hard to understand and maintain, and this results in misbehaviours. Also, features that should be easy to implement
    are not. Also, there are inefficiencies that are hard to fix.
 
@@ -98,11 +98,11 @@ Current Situation
    but as the device already does so much, it would be better if this would be a separate
    IP configuration manager for that ifindex.
 
-5. NMIP4Config exports properties on D-Bus like [AddressData](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/af360238be198257934b89d42f24431401550721/introspection/org.freedesktop.NetworkManager.IP4Config.xml#L26).
+5. NMIP4Config exports properties on D-Bus like [AddressData](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/6b64fac06d2f6e0d9fa530ebb1ab28d53a1c5d03/introspection/org.freedesktop.NetworkManager.IP4Config.xml#L26).
    which are the currently configured IP addresses. These should be directly obtained
    from the NMPlatform cache, which contains the correct list of addresses as kernel
    exposes them via rtnetlink. Instead, whenever there are changes in platform we
-   [generate](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/af360238be198257934b89d42f24431401550721/src/core/devices/nm-device.c#L14223)
+   [generate](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/6b64fac06d2f6e0d9fa530ebb1ab28d53a1c5d03/src/core/devices/nm-device.c#L14223)
    an NMIP4Config instance, then we merge, intersect and subtract this captured information
    with the IP configs we want to configure. Finally we merge them together again
    and sync the result to platform. This is bad, wrong and inefficient.
@@ -111,7 +111,7 @@ Current Situation
    That does not scale. If we have any hope to handle thousands of routes, this needs to change.
 
 6. The NMIP4Config objects are mutable, and they are heavily mutated. When we create an NMIP4Config
-   instance that represent a DHCP lease, we will [subtract](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/af360238be198257934b89d42f24431401550721/src/core/devices/nm-device.c#L14236)
+   instance that represent a DHCP lease, we will [subtract](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/6b64fac06d2f6e0d9fa530ebb1ab28d53a1c5d03/src/core/devices/nm-device.c#L14236)
    addresses that were externally removed. That is wrong, because during a reapply we
    will need to know these addresses again. The solution for that is not to mutate this
    data, but track whether IP addresses are removed separately.
@@ -127,7 +127,7 @@ Current Situation
 8. As IP configuration is done by NMDevice, VPN connections have limited capabilities
    in this regard.
    When a VPN has IP addresses, then it injects them into NMDevice by
-   [providing](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/af360238be198257934b89d42f24431401550721/src/core/devices/nm-device.c#L13696)
+   [providing](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/6b64fac06d2f6e0d9fa530ebb1ab28d53a1c5d03/src/core/devices/nm-device.c#L13696)
    an NMIP4Config. However, that means VPNs cannot do DHCP or IPv4LL, because it can
    only inject known configuration. That would be very useful for example with a tap
    device with openvpn. The real problem here is that NMVpnConnection are
@@ -150,7 +150,7 @@ Current Situation
    but at least one of several optional methods must succeed). Anyway. The point
    is there is a need to make IP configuration more flexible. Currently it is not.
    Such a seemingly simple extension would be surprisingly difficult to implement
-   because [the code](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/af360238be198257934b89d42f24431401550721/src/core/devices/nm-device.c#L6616) is
+   because [the code](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/6b64fac06d2f6e0d9fa530ebb1ab28d53a1c5d03/src/core/devices/nm-device.c#L6616) is
    all over the place. The way how NMDevice tracks the overall activation state is
    hard to understand. This should be improved and possibly could be improved in a
    smaller refactoring effort. But instead of a smaller effort, we will use the big hammer
@@ -171,9 +171,9 @@ to rip out NMIP4Config and replace it by something better. Doing that is a large
 that changes NMDevice heavily. That is also the opportunity to get the smaller issues
 right.
 
-There is already a new class [NML3Cfg](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/2a88de2280c9c5dcbb35fed02f766cd3f6911303/src/core/nm-l3cfg.h#L141)
+There is already a new class [NML3Cfg](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/6b64fac06d2f6e0d9fa530ebb1ab28d53a1c5d03/src/core/nm-l3cfg.h#L141)
 (currently unused). An NML3Cfg instance is responsible for handling IP configuration
-of an ifindex. Consequently, we can ask NMNetns to [get](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/2a88de2280c9c5dcbb35fed02f766cd3f6911303/src/core/nm-netns.c#L142)
+of an ifindex. Consequently, we can ask NMNetns to [get](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/6b64fac06d2f6e0d9fa530ebb1ab28d53a1c5d03/src/core/nm-netns.c#L142)
 (or create) a NML3Cfg instance for an ifindex.
 The idea is that there can be multiple users (NMDevice and NMVpnConnection and future controller devices)
 that use the same NML3Cfg instance. Especially with a future rework of NMDevice where
@@ -183,7 +183,7 @@ to configure IP configuration on the same device. Already now with Libreswan VPN
 its NMIP4Config in NMDevice. Or with PPPoE, where the NMDeviceEthernet is both about IP configuration
 for the PPPoE device.
 
-There is also a new class [NML3ConfigData](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/2a88de2280c9c5dcbb35fed02f766cd3f6911303/src/core/nm-l3-config-data.h).
+There is also a new class [NML3ConfigData](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/6b64fac06d2f6e0d9fa530ebb1ab28d53a1c5d03/src/core/nm-l3-config-data.h).
 This replaces some aspect of NMIP4Config/NMIP6Config. A NML3ConfigData object is immutable and has no real logic
 (or state). It has some "logic", like comparing two NML3ConfigData instances, logging it, or merging two (immutable)
 instances into a new instance. But as the class is immutable, that logic is rather simple. This class is
@@ -191,7 +191,7 @@ used to track information. As it's immutable, anybody who is interested can keep
 for it's own purpose. For example, NMDhcpClient will generate a NML3ConfigData with the information
 of the lease. It may keep the reference, but it will also tell NMDevice about it. The NMDevice
 will then itself tell NML3Cfg to accept this configuration. This works by calling
-[add()/remove()](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/2a88de2280c9c5dcbb35fed02f766cd3f6911303/src/core/nm-l3cfg.c#L2654).
+[add()/remove()](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/6b64fac06d2f6e0d9fa530ebb1ab28d53a1c5d03/src/core/nm-l3cfg.c#L2654).
 One NML3ConfigData can also track both IPv4 and IPv6 information. It's a general set of IP related
 configuration, that has some address specific properties. Those are then duplicated for both address
 families and implemented in a way to minimize code duplication and encourage to treat them the same.
@@ -199,10 +199,10 @@ As this replaces an aspect of NMIP4Config, NMIP4Config can focus on it's other p
 
 What NML3Cfg then does, is to merge all NML3ConfigData, and "commit" it to platform. Thereby it knows
 which addresses it configured the last time (if they no longer are to be configured, they must be removed).
-This is done [here](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/2a88de2280c9c5dcbb35fed02f766cd3f6911303/src/core/nm-l3cfg.c#L3442).
+This is done [here](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/6b64fac06d2f6e0d9fa530ebb1ab28d53a1c5d03/src/core/nm-l3cfg.c#L3442).
 
 As independent users should be able to cooperate, it is not appropriate that they call "commit".
-Instead, they set a commit type ([here](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/2a88de2280c9c5dcbb35fed02f766cd3f6911303/src/core/nm-l3cfg.c#L3476),
+Instead, they set a commit type ([here](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/6b64fac06d2f6e0d9fa530ebb1ab28d53a1c5d03/src/core/nm-l3cfg.c#L3476),
 and whenever something changes, NML3Cfg knows the aggregated commit type. That is necessary
 because when we activate a device, we may want to preserve the existing IP configuration (e.g. after
 a restart of NetworkManager). During that time is the NML3Cfg instance set to a reduced commit
@@ -220,12 +220,12 @@ unlikely example. More likely is that NetworkManager is restarted and it leaves 
 ACD) configured. After restart, DHCP finds the same addresses and no new ACD should be performed. This shows
 that the ACD state depends all the IP addresses on an interface,
 and thus it's done by NML3Cfg. The API for this is very simple. Users enable/disable ACD during nm_l3cfg_add_config()
-and receive events like [NM_L3_CONFIG_NOTIFY_TYPE_ACD_EVENT](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/2a88de2280c9c5dcbb35fed02f766cd3f6911303/src/core/nm-l3cfg.c#L303).
+and receive events like [NM_L3_CONFIG_NOTIFY_TYPE_ACD_EVENT](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/6b64fac06d2f6e0d9fa530ebb1ab28d53a1c5d03/src/core/nm-l3cfg.c#L303).
 Another advantage is that ACD now works for any kinds of addresses. Currently it only works for addresses
 from DHCP and link local addresses.
 
 NML3Cfg does not implement or drive DHCP. However, as it already does ACD it gained it's own IPv4LL
-"library": [NML3IPv4LL](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/2a88de2280c9c5dcbb35fed02f766cd3f6911303/src/core/nm-l3cfg.c#L3624).
+"library": [NML3IPv4LL](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/6b64fac06d2f6e0d9fa530ebb1ab28d53a1c5d03/src/core/nm-l3cfg.c#L3624).
 This will replace nettools' n-ipv4ll library, because that library also does ACD internally, while we want
 to use the holistic view that NML3Cfg has. What this means, is that the user (NMDevice)
 can request a NML3IPv4LL handle from the NML3Cfg instance, and it just does it with a simple API.
@@ -252,7 +252,43 @@ currently don't support.
 In general, change the way how external IP addresses/routes are tracked. This merge, intersect, subtract
 approach does not perform well. Currently we react on signals and it's hard to understand what happens
 in response to that, or whether it's really the correct thing to do. See yourself starting from
-[here](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/af360238be198257934b89d42f24431401550721/src/core/devices/nm-device.c#L14214).
+[here](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/6b64fac06d2f6e0d9fa530ebb1ab28d53a1c5d03/src/core/devices/nm-device.c#L14214).
+
+### DHCP
+
+Currently, when NMDhcpClient receives a lease, it emits a signal with two things: the NMIP4Config
+instance (containing addresses, routes, DNS settings and other information for later use), and a string
+dictionary with the DHCP lease options (they are mainly used to expose them on D-Bus). The latter is
+immutable (meaning, it's not changed afterwards). That does not significantly change with L3Cfg. The
+difference is that instead of NMIP4Config a NML3ConfigData instance gets created. That instance then
+references the (immutable) strdict. With that, any part of the code that has access to the NML3ConfigData,
+also has access to the lease options. So instead of two separate
+pieces of information, the result of a lease event will only be a NML3ConfigData instance (which internally
+tracks the strdict with the DHCP lease options).
+
+Later, when NML3Cfg configures an interface, it takes all NML3ConfigData instances that were added to
+it, and merges them. [Currently](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/6b64fac06d2f6e0d9fa530ebb1ab28d53a1c5d03/src/core/nm-l3-config-data.c#L2693),
+the merged data will not contain the lease information, but it's probably not needed anyway.
+
+If it would be needed, the question is what happens if multiple lease informations are present
+during the merge. Duplicate leases would not commonly happen, but in general, the merging algorithm
+needs to take into account priorities and conflicting data.
+That is done by users who call [add](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/6b64fac06d2f6e0d9fa530ebb1ab28d53a1c5d03/src/core/nm-l3cfg.c#L2658)
+to provide a priority for the NML3ConfigData instance.
+Later, the instances get sorted by priority and merging is smart to take that into account
+([here](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/6b64fac06d2f6e0d9fa530ebb1ab28d53a1c5d03/src/core/nm-l3cfg.c#L2983)).
+
+### DNS
+
+DNS information is currently set in the NMIP4Config instances. That happens for example with the DNS information
+from a DHCP lease, but also with the static DNS settings from the connection profile. Later, the same information
+will packed in NML3ConfigData.
+
+One nice difference is again the immutability. Currently, NMDnsManager keeps a reference to all relevant NMIP4Config instances,
+but as they are mutable, it needs to [subscribe](https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/blob/6b64fac06d2f6e0d9fa530ebb1ab28d53a1c5d03/src/core/dns/nm-dns-manager.c#L275)
+to changes. Later, when a NML3ConfigData instance "changes", it means it was
+replaced by a different one and NMDnsManager needs to update its list of tracked NML3ConfigData. I find that
+cleaner, because adding and removal to the list of NMIP4Config/NML3ConfigData happens anyway and needs to be handled.
 
 
 Related Bugs
