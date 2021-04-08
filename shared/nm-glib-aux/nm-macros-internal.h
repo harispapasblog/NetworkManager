@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-2.1+ */
+/* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
  * Copyright (C) 2012 Colin Walters <walters@verbum.org>.
  * Copyright (C) 2014 Red Hat, Inc.
@@ -1038,6 +1038,14 @@ nm_g_object_unref(gpointer obj)
  */
 #define nm_clear_g_free(pp) nm_clear_pointer(pp, g_free)
 
+/* Our nm_clear_pointer() is more typesafe than g_clear_pointer() and
+ * should be preferred.
+ *
+ * For g_clear_object() that is not the case (because g_object_unref()
+ * anyway takes a void pointer). So using g_clear_object() is fine.
+ *
+ * Still have a nm_clear_g_object() because that returns a boolean
+ * indication whether anything was cleared. */
 #define nm_clear_g_object(pp) nm_clear_pointer(pp, g_object_unref)
 
 /**

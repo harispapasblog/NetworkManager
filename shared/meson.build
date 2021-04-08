@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: LGPL-2.1+
+# SPDX-License-Identifier: LGPL-2.1-or-later
 
 shared_inc = include_directories('.')
 
@@ -207,6 +207,7 @@ sources = files(
   'systemd/src/basic/prioq.c',
   'systemd/src/basic/process-util.c',
   'systemd/src/basic/random-util.c',
+  'systemd/src/basic/ratelimit.c',
   'systemd/src/basic/signal-util.c',
   'systemd/src/basic/socket-util.c',
   'systemd/src/basic/stat-util.c',

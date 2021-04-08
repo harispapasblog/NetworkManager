@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2004 - 2013 Red Hat, Inc.
  * Copyright (C) 2007 - 2008 Novell, Inc.
@@ -898,7 +898,7 @@ update_system_hostname(NMPolicy *self, const char *msg)
 
                 if (info->from_dns && info->ip_x[IS_IPv4]) {
                     const char *result;
-                    gboolean    wait;
+                    gboolean    wait = FALSE;
 
                     result =
                         nm_device_get_hostname_from_dns_lookup(info->device, addr_family, &wait);

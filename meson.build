@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: LGPL-2.1+
+# SPDX-License-Identifier: LGPL-2.1-or-later
 
 project(
   'NetworkManager', 'c',
@@ -6,7 +6,7 @@ project(
 #  - add corresponding NM_VERSION_x_y_z macros in
 #    "shared/nm-version-macros.h.in"
 #  - update number in configure.ac
-  version: '1.29.7',
+  version: '1.29.8',
   license: 'GPL2+',
   default_options: [
     'buildtype=debugoptimized',

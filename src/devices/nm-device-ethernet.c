@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2005 - 2014 Red Hat, Inc.
  * Copyright (C) 2006 - 2008 Novell, Inc.
@@ -895,9 +895,9 @@ link_negotiation_set(NMDevice *device)
     NMSettingWired *         s_wired;
     gboolean                 autoneg = TRUE;
     gboolean                 link_autoneg;
-    NMPlatformLinkDuplexType duplex = NM_PLATFORM_LINK_DUPLEX_UNKNOWN;
-    NMPlatformLinkDuplexType link_duplex;
-    guint32                  speed = 0;
+    NMPlatformLinkDuplexType duplex      = NM_PLATFORM_LINK_DUPLEX_UNKNOWN;
+    NMPlatformLinkDuplexType link_duplex = NM_PLATFORM_LINK_DUPLEX_UNKNOWN;
+    guint32                  speed       = 0;
     guint32                  link_speed;
 
     s_wired = nm_device_get_applied_setting(device, NM_TYPE_SETTING_WIRED);

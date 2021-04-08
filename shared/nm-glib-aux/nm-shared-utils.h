@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-2.1+ */
+/* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
  * Copyright (C) 2016 Red Hat, Inc.
  */
@@ -318,6 +318,8 @@ nm_utils_is_separator(const char c)
 /*****************************************************************************/
 
 GBytes *nm_gbytes_get_empty(void);
+
+GBytes *nm_g_bytes_new_from_str(const char *str);
 
 static inline gboolean
 nm_gbytes_equal0(GBytes *a, GBytes *b)

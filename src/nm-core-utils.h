@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2004 - 2016 Red Hat, Inc.
  * Copyright (C) 2005 - 2008 Novell, Inc.
@@ -448,6 +448,8 @@ GBytes *nm_utils_dhcp_client_id_mac(int arp_type, const guint8 *hwaddr, gsize hw
 guint32 nm_utils_create_dhcp_iaid(gboolean      legacy_unstable_byteorder,
                                   const guint8 *interface_id,
                                   gsize         interface_id_len);
+
+GBytes *nm_utils_dhcp_client_id_duid(guint32 iaid, const guint8 *duid, gsize duid_len);
 
 GBytes *nm_utils_dhcp_client_id_systemd_node_specific_full(guint32       iaid,
                                                            const guint8 *machine_id,

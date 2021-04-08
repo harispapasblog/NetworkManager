@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2010 - 2018 Red Hat, Inc.
  */
@@ -899,7 +899,7 @@ static void
 usage_device_modify(void)
 {
     g_printerr(_(
-        "Usage: nmcli device modify { ARGUMENTS | --help }\n"
+        "Usage: nmcli device modify { ARGUMENTS | help }\n"
         "\n"
         "ARGUMENTS := <ifname> ([+|-]<setting>.<property> <value>)+\n"
         "\n"

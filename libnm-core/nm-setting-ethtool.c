@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-2.1+ */
+/* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
  * Copyright (C) 2018 Red Hat, Inc.
  */
@@ -254,7 +254,7 @@ const char **
 nm_setting_ethtool_get_optnames(NMSettingEthtool *setting, guint *out_length)
 {
     const char *const *names;
-    guint              len;
+    guint              len = 0;
 
     g_return_val_if_fail(NM_IS_SETTING_ETHTOOL(setting), NULL);
 

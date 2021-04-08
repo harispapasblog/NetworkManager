@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-2.1+ */
+/* SPDX-License-Identifier: LGPL-2.1-or-later */
 
 #ifndef __NM_STR_BUF_H__
 #define __NM_STR_BUF_H__
@@ -265,6 +265,31 @@ nm_str_buf_append_required_delimiter(NMStrBuf *strbuf, char delimiter)
     if (strbuf->len > 0)
         nm_str_buf_append_c(strbuf, delimiter);
     return strbuf;
+}
+
+static inline void
+nm_str_buf_append_dirty(NMStrBuf *strbuf, gsize len)
+{
+    _nm_str_buf_assert(strbuf);
+
+    /* this append @len bytes to the buffer, but it does not
+     * initialize them! */
+    if (len > 0) {
+        nm_str_buf_maybe_expand(strbuf, len, FALSE);
+        strbuf->_priv_len += len;
+    }
+}
+
+static inline void
+nm_str_buf_append_c_len(NMStrBuf *strbuf, char ch, gsize len)
+{
+    _nm_str_buf_assert(strbuf);
+
+    if (len > 0) {
+        nm_str_buf_maybe_expand(strbuf, len, FALSE);
+        memset(&strbuf->_priv_str[strbuf->_priv_len], ch, len);
+        strbuf->_priv_len += len;
+    }
 }
 
 static inline void

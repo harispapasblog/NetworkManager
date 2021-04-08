@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2012 - 2018 Red Hat, Inc.
  */
@@ -12,9 +12,10 @@
 #include <endian.h>
 #include <fcntl.h>
 #include <libudev.h>
+#include <net/ethernet.h>
 #include <linux/fib_rules.h>
 #include <linux/ip.h>
-#include <linux/if_arp.h>
+#include <linux/if.h>
 #include <linux/if_bridge.h>
 #include <linux/if_link.h>
 #include <linux/if_tun.h>
@@ -24,6 +25,7 @@
 #include <linux/tc_act/tc_mirred.h>
 #include <netinet/icmp6.h>
 #include <netinet/in.h>
+#include <net/if_arp.h>
 #include <poll.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -8632,16 +8634,9 @@ ip_route_add(NMPlatform *             platform,
     nm_auto_nlmsg struct nl_msg *nlmsg = NULL;
     NMPObject                    obj;
 
-    switch (addr_family) {
-    case AF_INET:
-        nmp_object_stackinit(&obj, NMP_OBJECT_TYPE_IP4_ROUTE, (const NMPlatformObject *) route);
-        break;
-    case AF_INET6:
-        nmp_object_stackinit(&obj, NMP_OBJECT_TYPE_IP6_ROUTE, (const NMPlatformObject *) route);
-        break;
-    default:
-        nm_assert_not_reached();
-    }
+    nmp_object_stackinit(&obj,
+                         NMP_OBJECT_TYPE_IP_ROUTE(NM_IS_IPv4(addr_family)),
+                         (const NMPlatformObject *) route);
 
     nm_platform_ip_route_normalize(addr_family, NMP_OBJECT_CAST_IP_ROUTE(&obj));
 
