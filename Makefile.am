@@ -85,6 +85,8 @@ completiondir = $(datadir)/bash-completion/completions
 
 nmlocaledir = $(datadir)/locale
 
+INTROSPECTION_EXTRA_CFLAGS = -Wno-incompatible-pointer-types-discards-qualifiers
+
 GLIB_MKENUMS_H_FLAGS = --identifier-prefix NM
 GLIB_MKENUMS_C_FLAGS = --identifier-prefix NM
 
@@ -677,7 +679,10 @@ endif
 
 noinst_LTLIBRARIES += introspection/libnmdbus.la
 
-introspection_libnmdbus_la_CPPFLAGS = $(GLIB_CFLAGS)
+introspection_libnmdbus_la_CPPFLAGS = \
+	$(GLIB_CFLAGS) \
+	$(INTROSPECTION_EXTRA_CFLAGS) \
+	$(NULL)
 
 introspection_sources = \
 	introspection/org.freedesktop.NetworkManager.AccessPoint.c \
@@ -903,8 +908,6 @@ dbusinterfaces_DATA = \
 CLEANFILES += $(introspection_sources)
 CLEANFILES += $(DBUS_INTERFACE_DOCS)
 
-$(dispatcher_libnm_dispatcher_core_la_OBJECTS): $(introspection_sources)
-$(dispatcher_nm_dispatcher_OBJECTS):            $(introspection_sources)
 $(libnm_liblibnm_la_OBJECTS):                   $(introspection_sources)
 $(libnm_libnm_la_OBJECTS):                      $(introspection_sources)
 
@@ -940,6 +943,7 @@ libnm_core_lib_h_pub_real = \
 	libnm-core/nm-setting-ethtool.h \
 	libnm-core/nm-setting-generic.h \
 	libnm-core/nm-setting-gsm.h \
+	libnm-core/nm-setting-hostname.h \
 	libnm-core/nm-setting-infiniband.h \
 	libnm-core/nm-setting-ip-config.h \
 	libnm-core/nm-setting-ip-tunnel.h \
@@ -951,6 +955,7 @@ libnm_core_lib_h_pub_real = \
 	libnm-core/nm-setting-olpc-mesh.h \
 	libnm-core/nm-setting-ovs-bridge.h \
 	libnm-core/nm-setting-ovs-dpdk.h \
+	libnm-core/nm-setting-ovs-external-ids.h \
 	libnm-core/nm-setting-ovs-interface.h \
 	libnm-core/nm-setting-ovs-patch.h \
 	libnm-core/nm-setting-ovs-port.h \
@@ -1013,6 +1018,7 @@ libnm_core_lib_c_settings_real = \
 	libnm-core/nm-setting-ethtool.c \
 	libnm-core/nm-setting-generic.c \
 	libnm-core/nm-setting-gsm.c \
+	libnm-core/nm-setting-hostname.c \
 	libnm-core/nm-setting-infiniband.c \
 	libnm-core/nm-setting-ip-config.c \
 	libnm-core/nm-setting-ip-tunnel.c \
@@ -1024,6 +1030,7 @@ libnm_core_lib_c_settings_real = \
 	libnm-core/nm-setting-olpc-mesh.c \
 	libnm-core/nm-setting-ovs-bridge.c \
 	libnm-core/nm-setting-ovs-dpdk.c \
+	libnm-core/nm-setting-ovs-external-ids.c \
 	libnm-core/nm-setting-ovs-interface.c \
 	libnm-core/nm-setting-ovs-patch.c \
 	libnm-core/nm-setting-ovs-port.c \
@@ -1217,6 +1224,7 @@ GLIB_GENERATED += \
 	libnm-core/tests/nm-core-tests-enum-types.h \
 	libnm-core/tests/nm-core-tests-enum-types.c
 nm_core_tests_enum_types_sources = libnm-core/tests/test-general-enums.h
+nm_core_tests_enum_types_MKENUMS_C_FLAGS = --fhead '\#include "nm-default.h"\n'
 
 libnm-core/tests/nm-core-tests-enum-types.h.stamp: libnm-core/tests/.dirstamp
 libnm-core/tests/nm-core-tests-enum-types.c.stamp: libnm-core/tests/.dirstamp
@@ -1598,8 +1606,20 @@ libnm_noinst_data = \
 
 noinst_DATA += $(libnm_noinst_data)
 
+EXTRA_DIST += clients/cli/generate-docs-nm-settings-nmcli.xml.in
+
+if BUILD_DOCS
 clients/cli/generate-docs-nm-settings-nmcli.xml: clients/cli/generate-docs-nm-settings-nmcli
-	$(AM_V_GEN) clients/cli/generate-docs-nm-settings-nmcli > $@
+	$(AM_V_GEN) clients/cli/generate-docs-nm-settings-nmcli > "$@"
+check-local-generate-docs-nm-settings-nmcli: clients/cli/generate-docs-nm-settings-nmcli.xml
+	$(srcdir)/tools/check-compare-generated.sh "$(srcdir)" "$(builddir)" "$<"
+check_local += check-local-generate-docs-nm-settings-nmcli
+DISTCLEANFILES += clients/cli/generate-docs-nm-settings-nmcli.xml
+else
+clients/cli/generate-docs-nm-settings-nmcli.xml: clients/cli/generate-docs-nm-settings-nmcli.xml.in
+	$(AM_V_GEN) cp $^ $@
+check-local-generate-docs-nm-settings-nmcli:
+endif
 
 libnm_docs_sources = $(libnm_core_lib_c_settings_real)
 
@@ -3019,7 +3039,10 @@ nodist_src_settings_plugins_ifcfg_rh_libnmdbus_ifcfg_rh_la_SOURCES = \
 	src/settings/plugins/ifcfg-rh/nmdbus-ifcfg-rh.c \
 	src/settings/plugins/ifcfg-rh/nmdbus-ifcfg-rh.h
 
-src_settings_plugins_ifcfg_rh_libnmdbus_ifcfg_rh_la_CPPFLAGS = $(filter-out -DGLIB_VERSION_MAX_ALLOWED%,$(src_cppflags_base))
+src_settings_plugins_ifcfg_rh_libnmdbus_ifcfg_rh_la_CPPFLAGS = \
+	$(filter-out -DGLIB_VERSION_MAX_ALLOWED%,$(src_cppflags_base)) \
+	$(INTROSPECTION_EXTRA_CFLAGS) \
+	$(NULL)
 
 CLEANFILES += $(nodist_src_settings_plugins_ifcfg_rh_libnmdbus_ifcfg_rh_la_SOURCES)
 
@@ -4308,6 +4331,7 @@ dispatcher_tests_test_dispatcher_envp_CPPFLAGS = \
 	-DNETWORKMANAGER_COMPILATION=NM_NETWORKMANAGER_COMPILATION_CLIENT \
 	$(GLIB_CFLAGS) \
 	$(SANITIZER_EXEC_CFLAGS) \
+	$(INTROSPECTION_EXTRA_CFLAGS) \
 	$(NULL)
 
 dispatcher_tests_test_dispatcher_envp_SOURCES = \
@@ -4433,12 +4457,12 @@ $(clients_common_libnmc_base_la_OBJECTS): $(libnm_lib_h_pub_mkenums)
 $(clients_common_libnmc_base_la_OBJECTS): clients/common/.dirstamp
 
 clients_common_settings_doc_h = clients/common/settings-docs.h
-if HAVE_INTROSPECTION
+if BUILD_DOCS
 $(clients_common_settings_doc_h): clients/common/settings-docs.xsl libnm/nm-settings-docs-gir.xml clients/common/.dirstamp
 	$(AM_V_GEN) $(XSLTPROC) --output $@ $< $(word 2,$^)
 DISTCLEANFILES += $(clients_common_settings_doc_h)
 check-local-settings-docs: $(clients_common_settings_doc_h)
-	$(srcdir)/tools/check-settings-docs.sh "$(srcdir)" "$(builddir)" "$(clients_common_settings_doc_h)"
+	$(srcdir)/tools/check-compare-generated.sh "$(srcdir)" "$(builddir)" "$(clients_common_settings_doc_h)"
 check_local += check-local-settings-docs
 else
 $(clients_common_settings_doc_h): $(clients_common_settings_doc_h).in clients/common/.dirstamp
@@ -4977,6 +5001,11 @@ EXTRA_DIST += \
 	clients/tests/test-client.check-on-disk/test_004.expected \
 	$(NULL)
 
+check-local-gitlab-ci:
+	"$(srcdir)/tools/check-gitlab-ci.sh" "$(srcdir)"
+
+check_local += check-local-gitlab-ci
+
 ###############################################################################
 # data
 ###############################################################################
@@ -5265,7 +5294,8 @@ EXTRA_DIST += \
 	tools/check-config-options.sh \
 	tools/check-docs.sh \
 	tools/check-exports.sh \
-	tools/check-settings-docs.sh \
+	tools/check-compare-generated.sh \
+	tools/check-gitlab-ci.sh \
 	tools/create-exports-NetworkManager.sh \
 	tools/debug-helper.py \
 	tools/meson-post-install.sh \
@@ -5295,7 +5325,7 @@ include Makefile.examples
 
 if WITH_PYTHON_BLACK
 check-python-black:
-	test "$$NMTST_SKIP_PYTHON_BLACK" != 1 && $(BLACK) --check $(top_srcdir) $(top_srcdir)/examples/python/gi/nm-wg-set
+	test "$$NMTST_SKIP_PYTHON_BLACK" == 1 || $(BLACK) --check $(top_srcdir) $(top_srcdir)/examples/python/gi/nm-wg-set
 check_local += check-python-black
 endif
 

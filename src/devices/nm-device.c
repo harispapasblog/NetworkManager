@@ -53,6 +53,7 @@
 #include "settings/nm-settings-connection.h"
 #include "settings/nm-settings.h"
 #include "nm-setting-ethtool.h"
+#include "nm-setting-ovs-external-ids.h"
 #include "nm-setting-user.h"
 #include "nm-auth-utils.h"
 #include "nm-keep-alive.h"
@@ -74,7 +75,6 @@
 #include "nm-device-wireguard.h"
 
 #include "nm-device-logging.h"
-_LOG_DECLARE_SELF(NMDevice);
 
 /*****************************************************************************/
 
@@ -202,6 +202,23 @@ typedef struct {
     NMEthtoolRingState *    ring;
 } EthtoolState;
 
+typedef enum {
+    RESOLVER_WAIT_ADDRESS = 0,
+    RESOLVER_IN_PROGRESS,
+    RESOLVER_DONE,
+} ResolverState;
+
+typedef struct {
+    ResolverState state;
+    GResolver *   resolver;
+    GInetAddress *address;
+    GCancellable *cancellable;
+    char *        hostname;
+    NMDevice *    device;
+    guint         timeout_id; /* Used when waiting for the address */
+    int           addr_family;
+} HostnameResolver;
+
 /*****************************************************************************/
 
 enum {
@@ -214,6 +231,7 @@ enum {
     REMOVED,
     RECHECK_AUTO_ACTIVATE,
     RECHECK_ASSUME,
+    DNS_LOOKUP_DONE,
     LAST_SIGNAL,
 };
 static guint signals[LAST_SIGNAL] = {0};
@@ -322,6 +340,14 @@ typedef struct _NMDevicePrivate {
     int parent_ifindex;
 
     int auth_retries;
+
+    union {
+        struct {
+            HostnameResolver *hostname_resolver_6;
+            HostnameResolver *hostname_resolver_4;
+        };
+        HostnameResolver *hostname_resolver_x[2];
+    };
 
     union {
         const guint8 hw_addr_len; /* read-only */
@@ -818,6 +844,22 @@ static NM_UTILS_LOOKUP_STR_DEFINE(mtu_source_to_str,
                                                            "ip-config"),
                                   NM_UTILS_LOOKUP_STR_ITEM(NM_DEVICE_MTU_SOURCE_CONNECTION,
                                                            "connection"), );
+
+/*****************************************************************************/
+
+static void
+_hostname_resolver_free(HostnameResolver *resolver)
+{
+    if (!resolver)
+        return;
+
+    nm_clear_g_source(&resolver->timeout_id);
+    nm_clear_g_cancellable(&resolver->cancellable);
+    nm_g_object_unref(resolver->resolver);
+    nm_g_object_unref(resolver->address);
+    g_free(resolver->hostname);
+    nm_g_slice_free(resolver);
+}
 
 /*****************************************************************************/
 
@@ -11411,10 +11453,10 @@ nm_device_reactivate_ip_config(NMDevice *         self,
     if (priv->ip_state_x[IS_IPv4] == NM_DEVICE_IP_STATE_NONE)
         return;
 
-    method_old = nm_setting_ip_config_get_method(s_ip_old)
+    method_old = (s_ip_old ? nm_setting_ip_config_get_method(s_ip_old) : NULL)
                      ?: (IS_IPv4 ? NM_SETTING_IP4_CONFIG_METHOD_DISABLED
                                  : NM_SETTING_IP6_CONFIG_METHOD_IGNORE);
-    method_new = nm_setting_ip_config_get_method(s_ip_new)
+    method_new = (s_ip_new ? nm_setting_ip_config_get_method(s_ip_new) : NULL)
                      ?: (IS_IPv4 ? NM_SETTING_IP4_CONFIG_METHOD_DISABLED
                                  : NM_SETTING_IP6_CONFIG_METHOD_IGNORE);
 
@@ -11485,28 +11527,38 @@ can_reapply_change(NMDevice *  self,
                                                  NM_SETTING_CONNECTION_LLDP,
                                                  NM_SETTING_CONNECTION_MDNS,
                                                  NM_SETTING_CONNECTION_LLMNR);
-    } else if (NM_IN_STRSET(setting_name,
-                            NM_SETTING_USER_SETTING_NAME,
-                            NM_SETTING_PROXY_SETTING_NAME,
-                            NM_SETTING_IP4_CONFIG_SETTING_NAME,
-                            NM_SETTING_IP6_CONFIG_SETTING_NAME)) {
-        return TRUE;
-    } else if (nm_streq(setting_name, NM_SETTING_WIRED_SETTING_NAME)
-               && NM_IN_SET(NM_DEVICE_GET_CLASS(self)->get_configured_mtu,
-                            nm_device_get_configured_mtu_wired_parent,
-                            nm_device_get_configured_mtu_for_wired)) {
-        return nm_device_hash_check_invalid_keys(diffs,
-                                                 NM_SETTING_WIRED_SETTING_NAME,
-                                                 error,
-                                                 NM_SETTING_WIRED_MTU);
-    } else {
-        g_set_error(error,
-                    NM_DEVICE_ERROR,
-                    NM_DEVICE_ERROR_INCOMPATIBLE_CONNECTION,
-                    "Can't reapply any changes to '%s' setting",
-                    setting_name);
-        return FALSE;
     }
+
+    if (NM_IN_STRSET(setting_name,
+                     NM_SETTING_USER_SETTING_NAME,
+                     NM_SETTING_PROXY_SETTING_NAME,
+                     NM_SETTING_IP4_CONFIG_SETTING_NAME,
+                     NM_SETTING_IP6_CONFIG_SETTING_NAME))
+        return TRUE;
+
+    if (nm_streq(setting_name, NM_SETTING_WIRED_SETTING_NAME)) {
+        if (NM_IN_SET(NM_DEVICE_GET_CLASS(self)->get_configured_mtu,
+                      nm_device_get_configured_mtu_wired_parent,
+                      nm_device_get_configured_mtu_for_wired)) {
+            return nm_device_hash_check_invalid_keys(diffs,
+                                                     NM_SETTING_WIRED_SETTING_NAME,
+                                                     error,
+                                                     NM_SETTING_WIRED_MTU);
+        }
+        goto out_fail;
+    }
+
+    if (nm_streq(setting_name, NM_SETTING_OVS_EXTERNAL_IDS_SETTING_NAME)
+        && NM_DEVICE_GET_CLASS(self)->can_reapply_change_ovs_external_ids)
+        return TRUE;
+
+out_fail:
+    g_set_error(error,
+                NM_DEVICE_ERROR,
+                NM_DEVICE_ERROR_INCOMPATIBLE_CONNECTION,
+                "Can't reapply any changes to '%s' setting",
+                setting_name);
+    return FALSE;
 }
 
 static void
@@ -11649,6 +11701,8 @@ check_and_reapply_connection(NMDevice *    self,
 
         con_old = applied_clone = nm_simple_connection_new_clone(applied);
         con_new                 = applied;
+        /* FIXME(applied-connection-immutable): we should not modify the applied
+         *   connection but replace it with a new (immutable) instance. */
         nm_connection_replace_settings_from_connection(applied, connection_clean);
         nm_connection_clear_secrets(applied);
     } else
@@ -14403,6 +14457,7 @@ static void
 _cleanup_generic_pre(NMDevice *self, CleanupType cleanup_type)
 {
     NMDevicePrivate *priv = NM_DEVICE_GET_PRIVATE(self);
+    guint            i;
 
     _cancel_activation(self);
 
@@ -14426,6 +14481,9 @@ _cleanup_generic_pre(NMDevice *self, CleanupType cleanup_type)
     queued_state_clear(self);
 
     _dev_shared4_cleanup(self);
+
+    for (i = 0; i < 2; i++)
+        nm_clear_pointer(&priv->hostname_resolver_x[i], _hostname_resolver_free);
 
     _cleanup_ip_pre(self, AF_INET, cleanup_type);
     _cleanup_ip_pre(self, AF_INET6, cleanup_type);
@@ -16208,6 +16266,178 @@ nm_device_auth_retries_try_next(NMDevice *self)
     return TRUE;
 }
 
+static void
+hostname_dns_lookup_callback(GObject *source, GAsyncResult *result, gpointer user_data)
+{
+    HostnameResolver *resolver;
+    NMDevice *        self;
+    gs_free char *    hostname  = NULL;
+    gs_free char *    addr_str  = NULL;
+    gs_free_error GError *error = NULL;
+
+    hostname = g_resolver_lookup_by_address_finish(G_RESOLVER(source), result, &error);
+    if (g_error_matches(error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+        return;
+
+    resolver           = user_data;
+    self               = resolver->device;
+    resolver->state    = RESOLVER_DONE;
+    resolver->hostname = g_strdup(hostname);
+
+    _LOGD(LOGD_DNS,
+          "hostname-from-dns: lookup done for %s, result %s%s%s",
+          (addr_str = g_inet_address_to_string(resolver->address)),
+          NM_PRINT_FMT_QUOTE_STRING(hostname));
+
+    nm_clear_g_cancellable(&resolver->cancellable);
+    g_signal_emit(self, signals[DNS_LOOKUP_DONE], 0);
+}
+
+static gboolean
+hostname_dns_address_timeout(gpointer user_data)
+{
+    HostnameResolver *resolver = user_data;
+    NMDevice *        self     = resolver->device;
+
+    g_return_val_if_fail(NM_IS_DEVICE(self), G_SOURCE_REMOVE);
+
+    nm_assert(resolver->state == RESOLVER_WAIT_ADDRESS);
+    nm_assert(!resolver->address);
+    nm_assert(!resolver->cancellable);
+
+    _LOGT(LOGD_DNS,
+          "hostname-from-dns: timed out while waiting IPv%c address",
+          nm_utils_addr_family_to_char(resolver->addr_family));
+
+    resolver->timeout_id = 0;
+    resolver->state      = RESOLVER_DONE;
+    g_signal_emit(self, signals[DNS_LOOKUP_DONE], 0);
+
+    return G_SOURCE_REMOVE;
+}
+
+/* return value is valid only immediately */
+const char *
+nm_device_get_hostname_from_dns_lookup(NMDevice *self, int addr_family, gboolean *out_wait)
+{
+    NMDevicePrivate * priv;
+    const int         IS_IPv4 = NM_IS_IPv4(addr_family);
+    HostnameResolver *resolver;
+    NMIPConfig *      ip_config;
+    const char *      method;
+    gboolean          address_changed         = FALSE;
+    gs_unref_object GInetAddress *new_address = NULL;
+
+    g_return_val_if_fail(NM_IS_DEVICE(self), NULL);
+    priv = NM_DEVICE_GET_PRIVATE(self);
+
+    /* If the device is not supposed to have addresses,
+     * return an immediate empty result.*/
+    method = nm_device_get_effective_ip_config_method(self, addr_family);
+    if (IS_IPv4) {
+        if (NM_IN_STRSET(method, NM_SETTING_IP4_CONFIG_METHOD_DISABLED)) {
+            nm_clear_pointer(&priv->hostname_resolver_x[IS_IPv4], _hostname_resolver_free);
+            NM_SET_OUT(out_wait, FALSE);
+            return NULL;
+        }
+    } else {
+        if (NM_IN_STRSET(method,
+                         NM_SETTING_IP6_CONFIG_METHOD_DISABLED,
+                         NM_SETTING_IP6_CONFIG_METHOD_IGNORE)) {
+            nm_clear_pointer(&priv->hostname_resolver_x[IS_IPv4], _hostname_resolver_free);
+            NM_SET_OUT(out_wait, FALSE);
+            return NULL;
+        }
+    }
+
+    resolver = priv->hostname_resolver_x[IS_IPv4];
+    if (!resolver) {
+        resolver  = g_slice_new(HostnameResolver);
+        *resolver = (HostnameResolver){
+            .resolver    = g_resolver_get_default(),
+            .device      = self,
+            .addr_family = addr_family,
+            .state       = RESOLVER_WAIT_ADDRESS,
+        };
+        priv->hostname_resolver_x[IS_IPv4] = resolver;
+    }
+
+    /* Determine the first address of the interface and
+     * whether it changed from the previous lookup */
+    ip_config = priv->ip_config_x[IS_IPv4];
+    if (ip_config) {
+        const NMPlatformIPAddress *addr;
+
+        addr = nm_ip_config_get_first_address(ip_config);
+        if (addr) {
+            new_address = g_inet_address_new_from_bytes(addr->address_ptr,
+                                                        IS_IPv4 ? G_SOCKET_FAMILY_IPV4
+                                                                : G_SOCKET_FAMILY_IPV6);
+        }
+    }
+
+    if (new_address && resolver->address) {
+        if (!g_inet_address_equal(new_address, resolver->address))
+            address_changed = TRUE;
+    } else if (new_address != resolver->address)
+        address_changed = TRUE;
+
+    {
+        gs_free char *old_str = NULL;
+        gs_free char *new_str = NULL;
+
+        _LOGT(LOGD_DNS,
+              "hostname-from-dns: ipv%c resolver state %d, old address %s, new address %s",
+              nm_utils_addr_family_to_char(resolver->addr_family),
+              resolver->state,
+              resolver->address ? (old_str = g_inet_address_to_string(resolver->address))
+                                : "(null)",
+              new_address ? (new_str = g_inet_address_to_string(new_address)) : "(null)");
+    }
+
+    /* In every state, if the address changed, we restart
+     * the resolution with the new address */
+    if (address_changed) {
+        nm_clear_g_cancellable(&resolver->cancellable);
+        nm_g_object_unref(resolver->address);
+        resolver->state = RESOLVER_WAIT_ADDRESS;
+    }
+
+    if (address_changed && new_address) {
+        gs_free char *str = NULL;
+
+        _LOGT(LOGD_DNS,
+              "hostname-from-dns: starting lookup for address %s",
+              (str = g_inet_address_to_string(new_address)));
+
+        resolver->state       = RESOLVER_IN_PROGRESS;
+        resolver->cancellable = g_cancellable_new();
+        resolver->address     = g_steal_pointer(&new_address);
+        g_resolver_lookup_by_address_async(resolver->resolver,
+                                           resolver->address,
+                                           resolver->cancellable,
+                                           hostname_dns_lookup_callback,
+                                           resolver);
+        nm_clear_g_source(&resolver->timeout_id);
+    }
+
+    switch (resolver->state) {
+    case RESOLVER_WAIT_ADDRESS:
+        if (!resolver->timeout_id)
+            resolver->timeout_id = g_timeout_add(30000, hostname_dns_address_timeout, resolver);
+        NM_SET_OUT(out_wait, TRUE);
+        return NULL;
+    case RESOLVER_IN_PROGRESS:
+        NM_SET_OUT(out_wait, TRUE);
+        return NULL;
+    case RESOLVER_DONE:
+        NM_SET_OUT(out_wait, FALSE);
+        return resolver->hostname;
+    }
+
+    return nm_assert_unreachable_val(NULL);
+}
+
 /*****************************************************************************/
 
 static const char *
@@ -17353,6 +17583,16 @@ nm_device_class_init(NMDeviceClass *klass)
                                            NULL,
                                            G_TYPE_NONE,
                                            0);
+
+    signals[DNS_LOOKUP_DONE] = g_signal_new(NM_DEVICE_DNS_LOOKUP_DONE,
+                                            G_OBJECT_CLASS_TYPE(object_class),
+                                            G_SIGNAL_RUN_FIRST,
+                                            0,
+                                            NULL,
+                                            NULL,
+                                            NULL,
+                                            G_TYPE_NONE,
+                                            0);
 }
 
 /* Connection defaults from plugins */

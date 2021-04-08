@@ -37,6 +37,7 @@
 #include "nm-setting-dummy.h"
 #include "nm-setting-generic.h"
 #include "nm-setting-gsm.h"
+#include "nm-setting-hostname.h"
 #include "nm-setting-infiniband.h"
 #include "nm-setting-ip-tunnel.h"
 #include "nm-setting-ip4-config.h"
@@ -473,6 +474,10 @@ GSList *_nm_vpn_plugin_info_list_load_dir(const char *              dirname,
                                           gint64                    check_owner,
                                           NMUtilsCheckFilePredicate check_file,
                                           gpointer                  user_data);
+
+/*****************************************************************************/
+
+GHashTable *_nm_setting_ovs_external_ids_get_data(NMSettingOvsExternalIDs *self);
 
 /*****************************************************************************/
 
