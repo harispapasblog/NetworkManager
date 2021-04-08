@@ -2,6 +2,10 @@
 
 set -e
 
+if [ "$NMTST_SKIP_CHECK_GITLAB_CI" = 1 ]; then
+    exit 0
+fi
+
 if [ $# -eq 0 ] ; then
     BASEDIR="$(dirname "$(readlink -f "$0")")/.."
 elif [ $# -eq 1 ] ; then
@@ -19,7 +23,7 @@ if ! [ -f ./.gitlab-ci.yml ] ; then
     exit 0
 fi
 
-if ! ci-fairy --help 2>&1 >/dev/null ; then
+if ! command -v ci-fairy &> /dev/null ; then
     # ci-fairy not available. Cannot check.
     exit 0
 fi

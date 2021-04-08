@@ -46,6 +46,22 @@
 
 ###############################################################################
 
+%if "x__BCOND_DEFAULT_DEBUG__" == "x1" || "x__BCOND_DEFAULT_DEBUG__" == "x0"
+%global bcond_default_debug __BCOND_DEFAULT_DEBUG__
+%else
+%global bcond_default_debug 0
+%endif
+
+%if "x__BCOND_DEFAULT_TEST__" == "x1" || "x__BCOND_DEFAULT_TEST__" == "x0"
+%global bcond_default_test __BCOND_DEFAULT_TEST__
+%else
+%if 0%{?rhel} >= 9
+%global bcond_default_test 1
+%else
+%global bcond_default_test 0
+%endif
+%endif
+
 %bcond_with meson
 %bcond_without adsl
 %bcond_without bluetooth
@@ -57,8 +73,12 @@
 %bcond_without nmtui
 %bcond_without nm_cloud_setup
 %bcond_without regen_docs
+%if %{bcond_default_debug}
+%bcond_without debug
+%else
 %bcond_with    debug
-%if 0%{?rhel} >= 9
+%endif
+%if %{bcond_default_test}
 %bcond_without test
 %else
 %bcond_with    test
@@ -792,8 +812,7 @@ intltoolize --automake --copy --force
 	--with-resolvconf=no \
 	--with-netconfig=no \
 	--with-config-dns-rc-manager-default=%{dns_rc_manager_default} \
-	--with-config-logging-backend-default=%{logging_backend_default} \
-	--enable-json-validation
+	--with-config-logging-backend-default=%{logging_backend_default}
 
 make %{?_smp_mflags}
 
@@ -1112,6 +1131,7 @@ fi
 %{systemd_dir}/nm-cloud-setup.timer
 %{nmlibdir}/dispatcher.d/90-nm-cloud-setup.sh
 %{nmlibdir}/dispatcher.d/no-wait.d/90-nm-cloud-setup.sh
+%{_mandir}/man8/nm-cloud-setup.8*
 %endif
 
 

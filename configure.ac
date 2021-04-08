@@ -8,7 +8,7 @@ dnl    "shared/nm-version-macros.h.in"
 dnl  - update number in meson.build
 m4_define([nm_major_version], [1])
 m4_define([nm_minor_version], [29])
-m4_define([nm_micro_version], [3])
+m4_define([nm_micro_version], [6])
 m4_define([nm_version],
           [nm_major_version.nm_minor_version.nm_micro_version])
 
@@ -83,6 +83,7 @@ AC_CHECK_DECLS([
 	reallocarray],
 	[], [], [[
 #include <malloc.h>
+#include <stdlib.h>
 ]])
 
 AC_CHECK_DECLS([
@@ -1270,6 +1271,7 @@ if test "$build_docs" != "yes" -a \
         -f "$srcdir"/man/nmtui.1 -a \
         \
         -f "$srcdir"/man/nm-openvswitch.7 -a \
+        -f "$srcdir"/man/nm-cloud-setup.8 -a \
         \
         -f "$srcdir"/man/nm-settings-dbus.5 -a \
         -f "$srcdir"/man/nm-settings-ifcfg-rh.5 -a \
