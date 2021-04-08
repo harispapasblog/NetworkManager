@@ -728,6 +728,7 @@ periodic_update(NMDeviceWifi *self)
     NMDeviceWifiPrivate *priv;
     int                  ifindex;
     guint32              new_rate;
+    int                  percent;
 
     if (nm_device_get_state(NM_DEVICE(self)) != NM_DEVICE_STATE_ACTIVATED) {
         /* BSSID and signal strength have meaningful values only if the device
@@ -757,23 +758,22 @@ periodic_update(NMDeviceWifi *self)
     if (ifindex <= 0)
         g_return_if_reached();
 
-    if (priv->current_ap) {
-        int percent;
-
-        percent = nm_platform_wifi_get_quality(nm_device_get_platform(NM_DEVICE(self)), ifindex);
-        if (percent >= 0 && percent <= 100) {
-            if (nm_wifi_ap_set_strength(priv->current_ap, (gint8) percent)) {
+    if (priv->current_ap
+        && nm_platform_wifi_get_station(nm_device_get_platform(NM_DEVICE(self)),
+                                        ifindex,
+                                        NULL,
+                                        &percent,
+                                        &new_rate)) {
+        if (nm_wifi_ap_set_strength(priv->current_ap, (gint8) percent)) {
 #if NM_MORE_LOGGING
-                _ap_dump(self, LOGL_TRACE, priv->current_ap, "updated", 0);
+            _ap_dump(self, LOGL_TRACE, priv->current_ap, "updated", 0);
 #endif
-            }
         }
-    }
 
-    new_rate = nm_platform_wifi_get_rate(nm_device_get_platform(NM_DEVICE(self)), ifindex);
-    if (new_rate != priv->rate) {
-        priv->rate = new_rate;
-        _notify(self, PROP_BITRATE);
+        if (new_rate != priv->rate) {
+            priv->rate = new_rate;
+            _notify(self, PROP_BITRATE);
+        }
     }
 }
 
@@ -1390,11 +1390,11 @@ _hw_addr_set_scanning(NMDeviceWifi *self, gboolean do_reset)
          * a new one.*/
         priv->hw_addr_scan_expire = now + SCAN_RAND_MAC_ADDRESS_EXPIRE_SEC;
 
-        generate_mac_address_mask =
-            nm_config_data_get_device_config(NM_CONFIG_GET_DATA,
-                                             "wifi.scan-generate-mac-address-mask",
-                                             device,
-                                             NULL);
+        generate_mac_address_mask = nm_config_data_get_device_config(
+            NM_CONFIG_GET_DATA,
+            NM_CONFIG_KEYFILE_KEY_DEVICE_WIFI_SCAN_GENERATE_MAC_ADDRESS_MASK,
+            device,
+            NULL);
 
         priv->scan_last_request_started_at_msec = G_MININT64;
         priv->scan_periodic_next_msec           = 0;
@@ -3369,31 +3369,33 @@ activation_success_handler(NMDevice *device)
     g_warn_if_fail(priv->current_ap);
     if (priv->current_ap) {
         if (nm_wifi_ap_get_fake(priv->current_ap)) {
-            gboolean ap_changed = FALSE;
+            gboolean    ap_changed   = FALSE;
+            gboolean    update_bssid = !nm_wifi_ap_get_address(priv->current_ap);
+            gboolean    update_rate  = !nm_wifi_ap_get_max_bitrate(priv->current_ap);
+            NMEtherAddr bssid;
+            guint32     rate;
 
             /* If the activation AP hasn't been seen by the supplicant in a scan
              * yet, it will be "fake".  This usually happens for Ad-Hoc and
              * AP-mode connections.  Fill in the details from the device itself
              * until the supplicant sends the scan result.
              */
-            if (!nm_wifi_ap_get_address(priv->current_ap)) {
-                guint8        bssid[ETH_ALEN] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
-                gs_free char *bssid_str       = NULL;
-
-                if (nm_platform_wifi_get_bssid(nm_device_get_platform(device), ifindex, bssid)
-                    && nm_ethernet_address_is_valid(bssid, ETH_ALEN)) {
-                    bssid_str = nm_utils_hwaddr_ntoa(bssid, ETH_ALEN);
-                    ap_changed |= nm_wifi_ap_set_address(priv->current_ap, bssid_str);
-                }
-            }
             if (!nm_wifi_ap_get_freq(priv->current_ap))
                 ap_changed |= nm_wifi_ap_set_freq(
                     priv->current_ap,
                     nm_platform_wifi_get_frequency(nm_device_get_platform(device), ifindex));
-            if (!nm_wifi_ap_get_max_bitrate(priv->current_ap))
-                ap_changed |= nm_wifi_ap_set_max_bitrate(
-                    priv->current_ap,
-                    nm_platform_wifi_get_rate(nm_device_get_platform(device), ifindex));
+
+            if ((update_bssid || update_rate)
+                && nm_platform_wifi_get_station(nm_device_get_platform(device),
+                                                ifindex,
+                                                update_bssid ? &bssid : NULL,
+                                                NULL,
+                                                update_rate ? &rate : NULL)) {
+                if (update_bssid && nm_ether_addr_is_valid(&bssid))
+                    ap_changed |= nm_wifi_ap_set_address_bin(priv->current_ap, &bssid);
+                if (update_rate)
+                    ap_changed |= nm_wifi_ap_set_max_bitrate(priv->current_ap, rate);
+            }
 
             if (ap_changed)
                 _ap_dump(self, LOGL_DEBUG, priv->current_ap, "updated", 0);

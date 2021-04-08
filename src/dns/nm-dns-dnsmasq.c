@@ -804,7 +804,7 @@ add_global_config(NMDnsDnsmasq *           self,
 }
 
 static void
-add_ip_config(NMDnsDnsmasq *self, GVariantBuilder *servers, const NMDnsIPConfigData *ip_data)
+add_ip_config(NMDnsDnsmasq *self, GVariantBuilder *servers, const NMDnsConfigIPData *ip_data)
 {
     NMIPConfig *  ip_config = ip_data->ip_config;
     gconstpointer addr;
@@ -820,11 +820,18 @@ add_ip_config(NMDnsDnsmasq *self, GVariantBuilder *servers, const NMDnsIPConfigD
     for (i = 0; i < num; i++) {
         addr = nm_ip_config_get_nameserver(ip_config, i);
         ip_addr_to_string(addr_family, addr, iface, ip_addr_to_string_buf);
-        for (j = 0; ip_data->domains.search[j]; j++) {
-            domain = nm_utils_parse_dns_domain(ip_data->domains.search[j], NULL);
-            add_dnsmasq_nameserver(self, servers, ip_addr_to_string_buf, domain[0] ? domain : NULL);
-        }
 
+        if (!ip_data->domains.has_default_route_explicit && ip_data->domains.has_default_route)
+            add_dnsmasq_nameserver(self, servers, ip_addr_to_string_buf, NULL);
+        if (ip_data->domains.search) {
+            for (j = 0; ip_data->domains.search[j]; j++) {
+                domain = nm_utils_parse_dns_domain(ip_data->domains.search[j], NULL);
+                add_dnsmasq_nameserver(self,
+                                       servers,
+                                       ip_addr_to_string_buf,
+                                       domain[0] ? domain : NULL);
+            }
+        }
         if (ip_data->domains.reverse) {
             for (j = 0; ip_data->domains.reverse[j]; j++) {
                 add_dnsmasq_nameserver(self,
@@ -843,7 +850,7 @@ create_update_args(NMDnsDnsmasq *           self,
                    const char *             hostname)
 {
     GVariantBuilder          servers;
-    const NMDnsIPConfigData *ip_data;
+    const NMDnsConfigIPData *ip_data;
 
     g_variant_builder_init(&servers, G_VARIANT_TYPE("aas"));
 

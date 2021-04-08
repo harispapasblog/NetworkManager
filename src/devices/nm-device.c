@@ -4004,6 +4004,7 @@ nm_device_get_route_table(NMDevice *self, int addr_family)
 _nm_unused static NMIPRouteTableSyncMode
 _get_route_table_sync_mode_stateful(NMDevice *self, int addr_family)
 {
+    const int        IS_IPv4 = NM_IS_IPv4(addr_family);
     NMDevicePrivate *priv = NM_DEVICE_GET_PRIVATE(self);
     gboolean         all_sync_now;
     gboolean         all_sync_eff;

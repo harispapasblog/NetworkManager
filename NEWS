@@ -8,10 +8,6 @@ The API is subject to change and not guaranteed to be compatible
 with the later release.
 USE AT YOUR OWN RISK.  NOT RECOMMENDED FOR PRODUCTION USE!
 
-* Change the behavior of nm-initrd-generator so that the 'ip=off|none' kernel
-  cmdline argument actually generates a connection which disables both
-  ipv4 and ipv6. Previously the generated connection would disable ipv4
-  but ipv6 would be set to the 'auto' method.
 * libnm: nm_setting_bond_add_option() no longer validates the
   option that is set. Instead, use nm_connection_verify() to validate
   the profile.
@@ -49,17 +45,16 @@ Overview of changes since NetworkManager-1.26
   interfaces.
 * Add a new provider for nm-cloud-setup to support automatic network
   configuration on Azure.
-* Change the default DNS priority for VPNs from 50 to -50. This is a
-  change in behavior and means that when connecting to a VPN with the
-  default route, DNS queries will never leak to local resolvers. To
-  restore the old behavior, set the DNS priority of the connection to
-  50.
 * The initrd generator now supports creating Infiniband connections.
 * Fix running DHCPv6-PD over PPPoE.
 * Fix building NetworkManager with LTO (Link Time Optimization).
 * Fix failure activating Wi-Fi P2P connections.
 * Reformat code using spaces instead of tabs. Also, the entire C
   source code is now formatted with "clang-format" (version 11.0).
+* Change the behavior of nm-initrd-generator so that the 'ip=off|none' kernel
+  cmdline argument actually generates a connection which disables both
+  ipv4 and ipv6. Previously the generated connection would disable ipv4
+  but ipv6 would be set to the 'auto' method.
 
 =============================================
 NetworkManager-1.26
