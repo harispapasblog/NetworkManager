@@ -28,7 +28,7 @@
 #include "nm-glib-aux/nm-random-utils.h"
 #include "systemd/nm-sd-utils-shared.h"
 
-#include "nm-libnm-core-intern/nm-ethtool-utils.h"
+#include "nm-base/nm-ethtool-base.h"
 #include "nm-libnm-core-intern/nm-common-macros.h"
 #include "nm-device-private.h"
 #include "nm-l3cfg.h"
@@ -37,7 +37,7 @@
 #include "NetworkManagerUtils.h"
 #include "nm-manager.h"
 #include "platform/nm-platform.h"
-#include "platform/nm-platform-utils.h"
+#include "nm-platform/nm-platform-utils.h"
 #include "platform/nmp-object.h"
 #include "platform/nmp-rules-manager.h"
 #include "ndisc/nm-ndisc.h"
@@ -129,7 +129,7 @@ typedef struct {
     NMPlatformAsyncCallback callback;
     gpointer                callback_data;
     guint                   num_vfs;
-    NMTernary               autoprobe;
+    NMOptionBool            autoprobe;
 } SriovOp;
 
 typedef enum {
@@ -200,7 +200,7 @@ struct _NMDeviceConnectivityHandle {
 typedef struct {
     int                     ifindex;
     NMEthtoolFeatureStates *features;
-    NMTernary               requested[_NM_ETHTOOL_ID_FEATURE_NUM];
+    NMOptionBool            requested[_NM_ETHTOOL_ID_FEATURE_NUM];
     NMEthtoolCoalesceState *coalesce;
     NMEthtoolRingState *    ring;
 } EthtoolState;
@@ -6057,7 +6057,7 @@ sriov_op_queue_op(NMDevice *self, SriovOp *op)
 static void
 sriov_op_queue(NMDevice *              self,
                guint                   num_vfs,
-               NMTernary               autoprobe,
+               NMOptionBool            autoprobe,
                NMPlatformAsyncCallback callback,
                gpointer                callback_data)
 {
@@ -6106,7 +6106,7 @@ device_init_static_sriov_num_vfs(NMDevice *self)
                                                  NULL);
         num_vfs = _nm_utils_ascii_str_to_int64(value, 10, 0, G_MAXINT32, -1);
         if (num_vfs >= 0)
-            sriov_op_queue(self, num_vfs, NM_TERNARY_DEFAULT, NULL, NULL);
+            sriov_op_queue(self, num_vfs, NM_OPTION_BOOL_DEFAULT, NULL, NULL);
     }
 }
 
@@ -8276,7 +8276,8 @@ activate_stage1_device_prepare(NMDevice *self)
             gs_free_error GError *error           = NULL;
             NMSriovVF *           vf;
             NMTernary             autoprobe;
-            guint                 i, num;
+            guint                 num;
+            guint                 i;
 
             autoprobe = nm_setting_sriov_get_autoprobe_drivers(s_sriov);
             if (autoprobe == NM_TERNARY_DEFAULT) {
@@ -8284,9 +8285,9 @@ activate_stage1_device_prepare(NMDevice *self)
                     NM_CONFIG_GET_DATA,
                     NM_CON_DEFAULT("sriov.autoprobe-drivers"),
                     self,
-                    NM_TERNARY_FALSE,
-                    NM_TERNARY_TRUE,
-                    NM_TERNARY_TRUE);
+                    NM_OPTION_BOOL_FALSE,
+                    NM_OPTION_BOOL_TRUE,
+                    NM_OPTION_BOOL_TRUE);
             }
 
             num      = nm_setting_sriov_get_num_vfs(s_sriov);
@@ -8313,7 +8314,7 @@ activate_stage1_device_prepare(NMDevice *self)
              */
             sriov_op_queue(self,
                            nm_setting_sriov_get_total_vfs(s_sriov),
-                           autoprobe,
+                           NM_TERNARY_TO_OPTION_BOOL(autoprobe),
                            sriov_params_cb,
                            nm_utils_user_data_pack(self, g_steal_pointer(&plat_vfs)));
             priv->stage1_sriov_state = NM_DEVICE_STAGE_STATE_PENDING;
@@ -15290,7 +15291,7 @@ _set_state_full(NMDevice *self, NMDeviceState state, NMDeviceStateReason reason,
                 priv->sriov_reset_pending++;
                 sriov_op_queue(self,
                                0,
-                               NM_TERNARY_TRUE,
+                               NM_OPTION_BOOL_TRUE,
                                sriov_reset_on_deactivate_cb,
                                nm_utils_user_data_pack(self, GINT_TO_POINTER(reason)));
             }
@@ -15342,7 +15343,7 @@ _set_state_full(NMDevice *self, NMDeviceState state, NMDeviceStateReason reason,
         if (priv->ifindex > 0
             && (s_sriov = nm_device_get_applied_setting(self, NM_TYPE_SETTING_SRIOV))) {
             priv->sriov_reset_pending++;
-            sriov_op_queue(self, 0, NM_TERNARY_TRUE, sriov_reset_on_failure_cb, self);
+            sriov_op_queue(self, 0, NM_OPTION_BOOL_TRUE, sriov_reset_on_failure_cb, self);
             break;
         }
         /* Schedule the transition to DISCONNECTED.  The device can't transition
@@ -16472,7 +16473,7 @@ nm_device_get_hostname_from_dns_lookup(NMDevice *self, int addr_family, gboolean
      * the resolution with the new address */
     if (address_changed) {
         nm_clear_g_cancellable(&resolver->cancellable);
-        nm_g_object_unref(resolver->address);
+        g_clear_object(&resolver->address);
         resolver->state = RESOLVER_WAIT_ADDRESS;
     }
 

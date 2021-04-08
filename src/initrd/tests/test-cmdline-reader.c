@@ -1951,59 +1951,73 @@ test_bootif_no_ip(void)
 static void
 test_bootif_hwtype(void)
 {
-    gs_unref_hashtable GHashTable *connections = NULL;
-    const char *const *ARGV = NM_MAKE_STRV("ip=eth0:dhcp", "BOOTIF=01-00-53-AB-cd-02-03");
-    NMConnection *     connection;
-    NMSettingWired *   s_wired;
-    NMSettingIPConfig *s_ip4;
-    NMSettingIPConfig *s_ip6;
-    gs_free char *     hostname = NULL;
+    const char *const *ARGV0  = NM_MAKE_STRV("ip=eth0:dhcp", "BOOTIF=01-00-53-AB-cd-02-03");
+    const char *const *ARGV1  = NM_MAKE_STRV("ip=eth0:dhcp", "BOOTIF=00-00-53-Ab-cD-02-03");
+    const char *const *ARGV[] = {ARGV0, ARGV1};
+    guint              i;
 
-    connections = nmi_cmdline_reader_parse(TEST_INITRD_DIR "/sysfs", ARGV, &hostname);
-    g_assert(connections);
-    g_assert_cmpint(g_hash_table_size(connections), ==, 2);
-    g_assert_cmpstr(hostname, ==, NULL);
+    for (i = 0; i < G_N_ELEMENTS(ARGV); i++) {
+        gs_unref_hashtable GHashTable *connections = NULL;
+        NMConnection *                 connection;
+        NMSettingWired *               s_wired;
+        NMSettingIPConfig *            s_ip4;
+        NMSettingIPConfig *            s_ip6;
+        gs_free char *                 hostname = NULL;
 
-    connection = g_hash_table_lookup(connections, "eth0");
-    g_assert(connection);
-    nmtst_assert_connection_verifies_without_normalization(connection);
-    g_assert_cmpstr(nm_connection_get_id(connection), ==, "eth0");
+        connections = nmi_cmdline_reader_parse(TEST_INITRD_DIR "/sysfs", ARGV[i], &hostname);
+        g_assert(connections);
+        g_assert_cmpint(g_hash_table_size(connections), ==, 2);
+        g_assert_cmpstr(hostname, ==, NULL);
 
-    s_wired = nm_connection_get_setting_wired(connection);
-    g_assert(!nm_setting_wired_get_mac_address(s_wired));
-    g_assert(s_wired);
+        connection = g_hash_table_lookup(connections, "eth0");
+        g_assert(connection);
+        nmtst_assert_connection_verifies_without_normalization(connection);
+        g_assert_cmpstr(nm_connection_get_id(connection), ==, "eth0");
 
-    s_ip4 = nm_connection_get_setting_ip4_config(connection);
-    g_assert(s_ip4);
-    g_assert_cmpstr(nm_setting_ip_config_get_method(s_ip4), ==, NM_SETTING_IP4_CONFIG_METHOD_AUTO);
-    g_assert(!nm_setting_ip_config_get_ignore_auto_dns(s_ip4));
-    g_assert(!nm_setting_ip_config_get_may_fail(s_ip4));
+        s_wired = nm_connection_get_setting_wired(connection);
+        g_assert(!nm_setting_wired_get_mac_address(s_wired));
+        g_assert(s_wired);
 
-    s_ip6 = nm_connection_get_setting_ip6_config(connection);
-    g_assert(s_ip6);
-    g_assert_cmpstr(nm_setting_ip_config_get_method(s_ip6), ==, NM_SETTING_IP6_CONFIG_METHOD_AUTO);
-    g_assert(!nm_setting_ip_config_get_ignore_auto_dns(s_ip6));
+        s_ip4 = nm_connection_get_setting_ip4_config(connection);
+        g_assert(s_ip4);
+        g_assert_cmpstr(nm_setting_ip_config_get_method(s_ip4),
+                        ==,
+                        NM_SETTING_IP4_CONFIG_METHOD_AUTO);
+        g_assert(!nm_setting_ip_config_get_ignore_auto_dns(s_ip4));
+        g_assert(!nm_setting_ip_config_get_may_fail(s_ip4));
 
-    connection = g_hash_table_lookup(connections, "bootif_connection");
-    g_assert(connection);
-    nmtst_assert_connection_verifies_without_normalization(connection);
-    g_assert_cmpstr(nm_connection_get_id(connection), ==, "BOOTIF Connection");
+        s_ip6 = nm_connection_get_setting_ip6_config(connection);
+        g_assert(s_ip6);
+        g_assert_cmpstr(nm_setting_ip_config_get_method(s_ip6),
+                        ==,
+                        NM_SETTING_IP6_CONFIG_METHOD_AUTO);
+        g_assert(!nm_setting_ip_config_get_ignore_auto_dns(s_ip6));
 
-    s_wired = nm_connection_get_setting_wired(connection);
-    g_assert_cmpstr(nm_setting_wired_get_mac_address(s_wired), ==, "00:53:AB:CD:02:03");
-    g_assert(s_wired);
+        connection = g_hash_table_lookup(connections, "bootif_connection");
+        g_assert(connection);
+        nmtst_assert_connection_verifies_without_normalization(connection);
+        g_assert_cmpstr(nm_connection_get_id(connection), ==, "BOOTIF Connection");
 
-    s_ip4 = nm_connection_get_setting_ip4_config(connection);
-    g_assert(s_ip4);
-    g_assert_cmpstr(nm_setting_ip_config_get_method(s_ip4), ==, NM_SETTING_IP4_CONFIG_METHOD_AUTO);
-    g_assert(!nm_setting_ip_config_get_ignore_auto_dns(s_ip4));
-    g_assert(nm_setting_ip_config_get_may_fail(s_ip4));
+        s_wired = nm_connection_get_setting_wired(connection);
+        g_assert_cmpstr(nm_setting_wired_get_mac_address(s_wired), ==, "00:53:AB:CD:02:03");
+        g_assert(s_wired);
 
-    s_ip6 = nm_connection_get_setting_ip6_config(connection);
-    g_assert(s_ip6);
-    g_assert_cmpstr(nm_setting_ip_config_get_method(s_ip6), ==, NM_SETTING_IP6_CONFIG_METHOD_AUTO);
-    g_assert(!nm_setting_ip_config_get_ignore_auto_dns(s_ip6));
-    g_assert(nm_setting_ip_config_get_may_fail(s_ip6));
+        s_ip4 = nm_connection_get_setting_ip4_config(connection);
+        g_assert(s_ip4);
+        g_assert_cmpstr(nm_setting_ip_config_get_method(s_ip4),
+                        ==,
+                        NM_SETTING_IP4_CONFIG_METHOD_AUTO);
+        g_assert(!nm_setting_ip_config_get_ignore_auto_dns(s_ip4));
+        g_assert(nm_setting_ip_config_get_may_fail(s_ip4));
+
+        s_ip6 = nm_connection_get_setting_ip6_config(connection);
+        g_assert(s_ip6);
+        g_assert_cmpstr(nm_setting_ip_config_get_method(s_ip6),
+                        ==,
+                        NM_SETTING_IP6_CONFIG_METHOD_AUTO);
+        g_assert(!nm_setting_ip_config_get_ignore_auto_dns(s_ip6));
+        g_assert(nm_setting_ip_config_get_may_fail(s_ip6));
+    }
 }
 
 /* Check that nameservers are assigned to all existing

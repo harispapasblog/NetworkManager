@@ -23,7 +23,7 @@
 #include "nm-ip6-config.h"
 #include "NetworkManagerUtils.h"
 #include "platform/nm-linux-platform.h"
-#include "platform/nm-platform-utils.h"
+#include "nm-platform/nm-platform-utils.h"
 #include "dhcp/nm-dhcp-manager.h"
 #include "ndisc/nm-ndisc.h"
 #include "ndisc/nm-lndp-ndisc.h"

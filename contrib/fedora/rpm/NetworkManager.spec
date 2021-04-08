@@ -217,6 +217,7 @@ Conflicts: NetworkManager-pptp < 1:0.7.0.99-1
 Conflicts: NetworkManager-openconnect < 0:0.7.0.99-1
 Conflicts: kde-plasma-networkmanagement < 1:0.9-0.49.20110527git.nm09
 
+BuildRequires: make
 BuildRequires: gcc
 BuildRequires: libtool
 BuildRequires: pkgconfig
@@ -376,6 +377,12 @@ This package contains NetworkManager support for team devices.
 Summary: Wifi plugin for NetworkManager
 Group: System Environment/Base
 Requires: %{name}%{?_isa} = %{epoch}:%{version}-%{release}
+
+%if 0%{?fedora} >= 29 || 0%{?rhel} >= 9
+Requires: wireless-regdb
+%else
+Requires: crda
+%endif
 
 %if %{with iwd} && (0%{?fedora} > 24 || 0%{?rhel} > 7)
 Requires: (wpa_supplicant >= %{wpa_supplicant_version} or iwd)
@@ -814,7 +821,7 @@ intltoolize --automake --copy --force
 	--with-config-dns-rc-manager-default=%{dns_rc_manager_default} \
 	--with-config-logging-backend-default=%{logging_backend_default}
 
-make %{?_smp_mflags}
+%make_build
 
 %endif
 
@@ -822,7 +829,7 @@ make %{?_smp_mflags}
 %if %{with meson}
 %meson_install
 %else
-make install DESTDIR=%{buildroot}
+%make_install
 %endif
 
 cp %{SOURCE1} %{buildroot}%{_sysconfdir}/%{name}/
@@ -888,8 +895,12 @@ fi
 
 
 %post
-/usr/bin/udevadm control --reload-rules || :
-/usr/bin/udevadm trigger --subsystem-match=net || :
+# skip triggering if udevd isn't even accessible, e.g. containers or
+# rpm-ostree-based systems
+if [ -S /run/udev/control ]; then
+    /usr/bin/udevadm control --reload-rules || :
+    /usr/bin/udevadm trigger --subsystem-match=net || :
+fi
 %if %{with firewalld_zone}
 %firewalld_reload
 %endif
@@ -996,7 +1007,8 @@ fi
 %{_mandir}/man1/*
 %{_mandir}/man5/*
 %{_mandir}/man7/nmcli-examples.7*
-%{_mandir}/man8/*
+%{_mandir}/man8/nm-initrd-generator.8.gz
+%{_mandir}/man8/NetworkManager.8.gz
 %dir %{_localstatedir}/lib/NetworkManager
 %dir %{_sysconfdir}/sysconfig/network-scripts
 %{_datadir}/dbus-1/system-services/org.freedesktop.nm_dispatcher.service
