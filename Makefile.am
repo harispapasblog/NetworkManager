@@ -1523,7 +1523,7 @@ GLIB_GENERATED += \
 nm_enum_types_sources = \
 	$(libnm_lib_h_pub_mkenums) \
 	$(libnm_lib_h_pub_real)
-nm_enum_types_MKENUMS_H_FLAGS = --identifier-prefix NM --fhead '\#include <nm-core-enum-types.h>\n'
+nm_enum_types_MKENUMS_H_FLAGS = --identifier-prefix NM --fhead '\#include "nm-core-enum-types.h"\n'
 nm_enum_types_MKENUMS_C_FLAGS = --identifier-prefix NM --fhead '\#include "nm-default.h"\n'
 
 $(dispatcher_nm_dispatcher_OBJECTS):                    $(libnm_lib_h_pub_mkenums)
@@ -3258,6 +3258,7 @@ EXTRA_DIST += \
 	src/settings/plugins/ifcfg-rh/tests/network-scripts/ifcfg-test-wifi-wep-passphrase \
 	src/settings/plugins/ifcfg-rh/tests/network-scripts/ifcfg-test-wifi-wpa-eap-tls \
 	src/settings/plugins/ifcfg-rh/tests/network-scripts/ifcfg-test-wifi-wpa-eap-ttls-tls \
+	src/settings/plugins/ifcfg-rh/tests/network-scripts/ifcfg-test-wifi-wpa-eap-suite-b-192-tls \
 	src/settings/plugins/ifcfg-rh/tests/network-scripts/ifcfg-test-wifi-wpa-psk \
 	src/settings/plugins/ifcfg-rh/tests/network-scripts/ifcfg-test-wifi-wpa-psk-2 \
 	src/settings/plugins/ifcfg-rh/tests/network-scripts/ifcfg-test-wifi-wpa-psk-adhoc \

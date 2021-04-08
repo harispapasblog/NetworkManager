@@ -19,6 +19,8 @@
 #include <linux/if_addr.h>
 #include <linux/if_arp.h>
 #include <linux/rtnetlink.h>
+#include <linux/if_ether.h>
+#include <linux/if_infiniband.h>
 
 #include "nm-std-aux/unaligned.h"
 #include "nm-glib-aux/nm-dedup-multi.h"
@@ -4098,8 +4100,11 @@ get_type_description(NMDevice *self)
         gs_free char *s = NULL;
 
         typename = G_OBJECT_TYPE_NAME(self);
-        if (g_str_has_prefix(typename, "NMDevice"))
+        if (g_str_has_prefix(typename, "NMDevice")) {
             typename += 8;
+            if (nm_streq(typename, "Veth"))
+                typename = "Ethernet";
+        }
         s                                     = g_ascii_strdown(typename, -1);
         klass->default_type_description       = g_intern_string(s);
         klass->default_type_description_klass = klass;
@@ -16320,6 +16325,32 @@ hostname_dns_address_timeout(gpointer user_data)
     return G_SOURCE_REMOVE;
 }
 
+static const char *
+_resolver_state_to_string(ResolverState state)
+{
+    switch (state) {
+    case RESOLVER_WAIT_ADDRESS:
+        return "wait-address";
+    case RESOLVER_IN_PROGRESS:
+        return "in-progress";
+    case RESOLVER_DONE:
+        return "done";
+    default:
+        nm_assert_not_reached();
+        return "unknown";
+    }
+}
+
+void
+nm_device_clear_dns_lookup_data(NMDevice *self)
+{
+    NMDevicePrivate *priv = NM_DEVICE_GET_PRIVATE(self);
+    guint            i;
+
+    for (i = 0; i < 2; i++)
+        nm_clear_pointer(&priv->hostname_resolver_x[i], _hostname_resolver_free);
+}
+
 /* return value is valid only immediately */
 const char *
 nm_device_get_hostname_from_dns_lookup(NMDevice *self, int addr_family, gboolean *out_wait)
@@ -16391,9 +16422,9 @@ nm_device_get_hostname_from_dns_lookup(NMDevice *self, int addr_family, gboolean
         gs_free char *new_str = NULL;
 
         _LOGT(LOGD_DNS,
-              "hostname-from-dns: ipv%c resolver state %d, old address %s, new address %s",
+              "hostname-from-dns: ipv%c resolver state %s, old address %s, new address %s",
               nm_utils_addr_family_to_char(resolver->addr_family),
-              resolver->state,
+              _resolver_state_to_string(resolver->state),
               resolver->address ? (old_str = g_inet_address_to_string(resolver->address))
                                 : "(null)",
               new_address ? (new_str = g_inet_address_to_string(new_address)) : "(null)");

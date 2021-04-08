@@ -34,6 +34,7 @@
 #include "nm-device-ppp.h"
 #include "nm-device-team.h"
 #include "nm-device-tun.h"
+#include "nm-device-veth.h"
 #include "nm-device-vlan.h"
 #include "nm-device-vxlan.h"
 #include "nm-device-wifi-p2p.h"
@@ -113,6 +114,17 @@
 #include "nm-wimax-nsp.h"
 
 #include "nm-autoptr.h"
+
+#if !defined(NETWORKMANAGER_COMPILATION) \
+    && (!defined(NM_NO_INCLUDE_EXTRA_HEADERS) || !NM_NO_INCLUDE_EXTRA_HEADERS)
+    /* historically, NetworkManager.h drags in the following system headers.
+     * These are not strictly necessary and the user may wish to opt out from
+     * including them. */
+    #include <linux/if_ether.h>
+    #include <linux/if_infiniband.h>
+    #include <linux/if_vlan.h>
+    #include <netinet/in.h>
+#endif
 
 #undef __NETWORKMANAGER_H_INSIDE__
 
