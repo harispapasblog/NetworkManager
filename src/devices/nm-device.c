@@ -611,6 +611,8 @@ typedef struct _NMDevicePrivate {
         guint64 tx_bytes;
         guint64 rx_bytes;
     } stats;
+
+    bool mtu_force_set_done : 1;
 } NMDevicePrivate;
 
 G_DEFINE_ABSTRACT_TYPE(NMDevice, nm_device, NM_TYPE_DBUS_OBJECT)
@@ -9795,6 +9797,18 @@ _commit_mtu(NMDevice *self)
         }
     }
 
+    if (mtu_desired && NM_DEVICE_GET_CLASS(self)->mtu_force_set && !priv->mtu_force_set_done) {
+        priv->mtu_force_set_done = TRUE;
+
+        if (mtu_desired == mtu_plat) {
+            mtu_plat--;
+            if (NM_DEVICE_GET_CLASS(self)->set_platform_mtu(self, mtu_desired - 1)) {
+                _LOGD(LOGD_DEVICE, "mtu: force-set MTU to %u", mtu_desired - 1);
+            } else
+                _LOGW(LOGD_DEVICE, "mtu: failure to force-set MTU to %u", mtu_desired - 1);
+        }
+    }
+
     _LOGT(LOGD_DEVICE,
           "mtu: device-mtu: %u%s, ipv6-mtu: %u%s, ifindex: %d",
           (guint) mtu_desired,
@@ -14439,6 +14453,8 @@ _cleanup_generic_post(NMDevice *self, CleanupType cleanup_type)
 
     priv->ipv6ll_has  = FALSE;
     priv->ipv6ll_addr = nm_ip_addr_zero.addr6;
+
+    priv->mtu_force_set_done = FALSE;
 
     /* Clean up IP configs; this does not actually deconfigure the
      * interface; the caller must flush routes and addresses explicitly.
