@@ -37,6 +37,8 @@ typedef struct {
     gboolean ignore_auto_dns;
     int      dhcp_timeout;
     char *   dhcp4_vci;
+
+    gint64 carrier_timeout_sec;
 } Reader;
 
 static Reader *
@@ -419,7 +421,7 @@ reader_parse_ip(Reader *reader, const char *sysfs_dir, char *argument)
 
     tmp = get_word(&argument, ':');
     if (!*argument) {
-        /* ip={dhcp|on|any|dhcp6|auto6|ibft} */
+        /* ip={dhcp|on|any|dhcp6|auto6|link6|ibft} */
         kind = tmp;
     } else {
         tmp2 = get_word(&argument, ':');
@@ -432,8 +434,9 @@ reader_parse_ip(Reader *reader, const char *sysfs_dir, char *argument)
                          "dhcp6",
                          "auto",
                          "auto6",
+                         "link6",
                          "ibft")) {
-            /* <ifname>:{none|off|dhcp|on|any|dhcp6|auto|auto6|ibft} */
+            /* <ifname>:{none|off|dhcp|on|any|dhcp6|auto|auto6|link6|ibft} */
             iface_spec = tmp;
             kind       = tmp2;
         } else {
@@ -595,6 +598,19 @@ reader_parse_ip(Reader *reader, const char *sysfs_dir, char *argument)
         }
     } else if (NM_IN_STRSET(kind, "auto6", "dhcp6")) {
         g_object_set(s_ip4, NM_SETTING_IP_CONFIG_MAY_FAIL, FALSE, NULL);
+        if (nm_setting_ip_config_get_num_addresses(s_ip4) == 0) {
+            g_object_set(s_ip4,
+                         NM_SETTING_IP_CONFIG_METHOD,
+                         NM_SETTING_IP4_CONFIG_METHOD_DISABLED,
+                         NULL);
+        }
+    } else if (nm_streq0(kind, "link6")) {
+        g_object_set(s_ip6,
+                     NM_SETTING_IP_CONFIG_METHOD,
+                     NM_SETTING_IP6_CONFIG_METHOD_LINK_LOCAL,
+                     NM_SETTING_IP_CONFIG_MAY_FAIL,
+                     FALSE,
+                     NULL);
         if (nm_setting_ip_config_get_num_addresses(s_ip4) == 0) {
             g_object_set(s_ip4,
                          NM_SETTING_IP_CONFIG_METHOD,
@@ -1033,7 +1049,10 @@ connection_set_needed_cb(gpointer key, gpointer value, gpointer user_data)
 }
 
 GHashTable *
-nmi_cmdline_reader_parse(const char *sysfs_dir, const char *const *argv, char **hostname)
+nmi_cmdline_reader_parse(const char *       sysfs_dir,
+                         const char *const *argv,
+                         char **            hostname,
+                         gint64 *           carrier_timeout_sec)
 {
     Reader *          reader;
     const char *      tag;
@@ -1067,6 +1086,9 @@ nmi_cmdline_reader_parse(const char *sysfs_dir, const char *const *argv, char **
         } else if (nm_streq(tag, "rd.net.dhcp.vendor-class")) {
             if (nm_utils_validate_dhcp4_vendor_class_id(argument, NULL))
                 nm_utils_strdup_reset(&reader->dhcp4_vci, argument);
+        } else if (nm_streq(tag, "rd.net.timeout.carrier")) {
+            reader->carrier_timeout_sec =
+                _nm_utils_ascii_str_to_int64(argument, 10, 0, G_MAXINT32, 0);
         }
     }
 
@@ -1226,6 +1248,8 @@ nmi_cmdline_reader_parse(const char *sysfs_dir, const char *const *argv, char **
     g_hash_table_foreach(reader->hash, _normalize_conn, NULL);
 
     NM_SET_OUT(hostname, g_steal_pointer(&reader->hostname));
+
+    NM_SET_OUT(carrier_timeout_sec, reader->carrier_timeout_sec);
 
     return reader_destroy(reader, FALSE);
 }

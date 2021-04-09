@@ -51,6 +51,7 @@ typedef enum {
     NM_DHCP_STATE_EXPIRE,     /* lease expired or NAKed */
     NM_DHCP_STATE_FAIL,       /* failed for some reason */
     NM_DHCP_STATE_TERMINATED, /* client is no longer running */
+    NM_DHCP_STATE_NOOP,       /* state is a non operation for NetworkManager */
     __NM_DHCP_STATE_MAX,
     NM_DHCP_STATE_MAX = __NM_DHCP_STATE_MAX - 1,
 } NMDhcpState;
@@ -170,6 +171,8 @@ void nm_dhcp_client_stop_pid(pid_t pid, const char *iface);
 void nm_dhcp_client_start_timeout(NMDhcpClient *self);
 
 void nm_dhcp_client_watch_child(NMDhcpClient *self, pid_t pid);
+
+void nm_dhcp_client_stop_watch_child(NMDhcpClient *self, pid_t pid);
 
 void nm_dhcp_client_set_state(NMDhcpClient *self, NMDhcpState new_state, NML3ConfigData *l3cd);
 

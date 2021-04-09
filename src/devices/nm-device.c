@@ -14175,6 +14175,15 @@ check_connection_available(NMDevice *                     self,
     if (nm_device_is_master(self))
         return TRUE;
 
+    if (!priv->up) {
+        /* If the device is !IFF_UP it also has no carrier. But we assume that if we
+         * would start activating the device (and thereby set the device IFF_UP),
+         * that we would get a carrier. We only know after we set the device up,
+         * and we only set it up after we start activating it. So presumably, this
+         * profile would be available (but we just don't know). */
+        return TRUE;
+    }
+
     nm_utils_error_set_literal(error,
                                NM_UTILS_ERROR_CONNECTION_AVAILABLE_TEMPORARY,
                                "device has no carrier");
@@ -16407,6 +16416,11 @@ nm_device_get_hostname_from_dns_lookup(NMDevice *self, int addr_family, gboolean
 
     /* If the device is not supposed to have addresses,
      * return an immediate empty result.*/
+    if (!nm_device_get_applied_connection(self)) {
+        NM_SET_OUT(out_wait, FALSE);
+        return NULL;
+    }
+
     method = nm_device_get_effective_ip_config_method(self, addr_family);
     if (IS_IPv4) {
         if (NM_IN_STRSET(method, NM_SETTING_IP4_CONFIG_METHOD_DISABLED)) {
