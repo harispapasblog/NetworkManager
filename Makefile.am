@@ -127,6 +127,7 @@ src/libnm-std-aux/.dirstamp:                        config-extra.h
 src/libnm-udev-aux/.dirstamp:                       config-extra.h
 src/libnm-systemd-shared/.dirstamp:                 config-extra.h
 src/libnm-systemd-shared/src/basic/.dirstamp:       config-extra.h
+src/libnm-systemd-shared/src/fundamental/.dirstamp: config-extra.h
 src/libnm-systemd-shared/src/shared/.dirstamp:      config-extra.h
 src/libnm-client-public/.dirstamp:                  config-extra.h
 src/libnm-client-public/.dirstamp:                  config-extra.h
@@ -2304,6 +2305,8 @@ src_core_libnm_systemd_core_la_SOURCES = \
 	src/core/systemd/src/libsystemd-network/lldp-neighbor.h \
 	src/core/systemd/src/libsystemd-network/lldp-network.c \
 	src/core/systemd/src/libsystemd-network/lldp-network.h \
+	src/core/systemd/src/libsystemd-network/network-common.c \
+	src/core/systemd/src/libsystemd-network/network-common.h \
 	src/core/systemd/src/libsystemd-network/network-internal.c \
 	src/core/systemd/src/libsystemd-network/network-internal.h \
 	src/core/systemd/src/libsystemd-network/sd-dhcp-client.c \
@@ -2639,6 +2642,7 @@ src_core_libNetworkManagerTest_la_LIBADD = \
 	$(CODE_COVERAGE_LDFLAGS) \
 	$(GLIB_LIBS) \
 	$(LIBUDEV_LIBS) \
+	$(PTHREAD_LIBS) \
 	$(NULL)
 
 $(src_core_libNetworkManagerTest_la_OBJECTS): $(src_libnm_core_public_mkenums_h)
@@ -2665,7 +2669,7 @@ src_core_NetworkManager_all_sym_LDFLAGS = \
 $(src_core_NetworkManager_all_sym_OBJECTS): $(src_libnm_core_public_mkenums_h)
 
 src/core/NetworkManager.ver: src/core/NetworkManager-all-sym $(core_plugins)
-	$(AM_V_GEN) NM="$(NM)" "$(srcdir)/tools/create-exports-NetworkManager.sh" --called-from-build "$(srcdir)"
+	$(AM_V_GEN) LIBTOOL="$(LIBTOOL)" NM="$(NM)" "$(srcdir)/tools/create-exports-NetworkManager.sh" --called-from-build "$(srcdir)"
 
 CLEANFILES += src/core/NetworkManager.ver
 

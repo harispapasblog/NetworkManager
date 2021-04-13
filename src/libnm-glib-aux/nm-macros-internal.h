@@ -1275,8 +1275,14 @@ default:                                    \
     (G_STATIC_ASSERT_EXPR((check) > 0 && ((check) & ((check) -1)) == 0), \
      NM_FLAGS_ANY((flags), (check)))
 
-#define NM_FLAGS_ANY(flags, check) ((((flags) & (check)) != 0) ? TRUE : FALSE)
-#define NM_FLAGS_ALL(flags, check) ((((flags) & (check)) == (check)) ? TRUE : FALSE)
+#define NM_FLAGS_ANY(flags, check) (((flags) & (check)) != 0)
+
+#define NM_FLAGS_ALL(flags, check)            \
+    ({                                        \
+        const typeof(check) _check = (check); \
+                                              \
+        (((flags) & (_check)) == (_check));   \
+    })
 
 #define NM_FLAGS_SET(flags, val)              \
     ({                                        \
@@ -1827,6 +1833,19 @@ nm_decode_version(guint version, guint *major, guint *minor, guint *micro)
             *_p_val_to_free = _buf2;                                                       \
         }                                                                                  \
         (const char *) _buf2;                                                              \
+    })
+
+/*****************************************************************************/
+
+#define nm_va_args_one_ptr(last)           \
+    ({                                     \
+        va_list  _va_args;                 \
+        gpointer _ptr;                     \
+                                           \
+        va_start(_va_args, (last));        \
+        _ptr = va_arg(_va_args, gpointer); \
+        va_end(_va_args);                  \
+        _ptr;                              \
     })
 
 /*****************************************************************************/
