@@ -393,8 +393,9 @@ reader_read_all_connections_from_fw(Reader *reader, const char *sysfs_dir)
 static void
 reader_parse_ip(Reader *reader, const char *sysfs_dir, char *argument)
 {
-    NMConnection *     connection;
-    NMSettingIPConfig *s_ip4 = NULL, *s_ip6 = NULL;
+    NMConnection *       connection;
+    NMSettingConnection *s_con;
+    NMSettingIPConfig *  s_ip4 = NULL, *s_ip6 = NULL;
     gs_unref_hashtable GHashTable *ibft = NULL;
     const char *                   tmp;
     const char *                   tmp2;
@@ -501,6 +502,7 @@ reader_parse_ip(Reader *reader, const char *sysfs_dir, char *argument)
 
     g_hash_table_add(reader->explicit_ip_connections, g_object_ref(connection));
 
+    s_con = nm_connection_get_setting_connection(connection);
     s_ip4 = nm_connection_get_setting_ip4_config(connection);
     s_ip6 = nm_connection_get_setting_ip6_config(connection);
 
@@ -550,6 +552,12 @@ reader_parse_ip(Reader *reader, const char *sysfs_dir, char *argument)
             nm_assert_not_reached();
 
         if (address) {
+            /* We don't want to have multiple devices up with the
+             * same static address. */
+            g_object_set(s_con,
+                         NM_SETTING_CONNECTION_MULTI_CONNECT,
+                         NM_CONNECTION_MULTI_CONNECT_SINGLE,
+                         NULL);
             switch (client_ip_family) {
             case AF_INET:
                 g_object_set(s_ip4,
@@ -605,7 +613,12 @@ reader_parse_ip(Reader *reader, const char *sysfs_dir, char *argument)
                          NULL);
         }
     } else if (NM_IN_STRSET(kind, "auto6", "dhcp6")) {
-        g_object_set(s_ip4, NM_SETTING_IP_CONFIG_MAY_FAIL, FALSE, NULL);
+        g_object_set(s_ip6,
+                     NM_SETTING_IP_CONFIG_METHOD,
+                     NM_SETTING_IP6_CONFIG_METHOD_AUTO,
+                     NM_SETTING_IP_CONFIG_MAY_FAIL,
+                     FALSE,
+                     NULL);
         if (nm_setting_ip_config_get_num_addresses(s_ip4) == 0) {
             g_object_set(s_ip4,
                          NM_SETTING_IP_CONFIG_METHOD,
@@ -757,6 +770,9 @@ reader_parse_master(Reader *reader, char *argument, const char *type_name, const
         mtu = get_word(&argument, ':');
     }
 
+    if (mtu)
+        connection_set(connection, NM_SETTING_WIRED_SETTING_NAME, NM_SETTING_WIRED_MTU, mtu);
+
     do {
         slave = get_word(&slaves, ',');
         if (slave == NULL)
@@ -770,8 +786,6 @@ reader_parse_master(Reader *reader, char *argument, const char *type_name, const
                      NM_SETTING_CONNECTION_MASTER,
                      master,
                      NULL);
-        if (mtu)
-            connection_set(connection, NM_SETTING_WIRED_SETTING_NAME, NM_SETTING_WIRED_MTU, mtu);
     } while (slaves && *slaves != '\0');
 
     if (argument && *argument)
@@ -1206,12 +1220,11 @@ nmi_cmdline_reader_parse(const char *       sysfs_dir,
 
         s_wired = nm_connection_get_setting_wired(connection);
 
-        if (nm_connection_get_interface_name(connection)
-            || (nm_setting_wired_get_mac_address(s_wired)
-                && !nm_utils_hwaddr_matches(nm_setting_wired_get_mac_address(s_wired),
-                                            -1,
-                                            bootif,
-                                            -1))) {
+        if (nm_setting_wired_get_mac_address(s_wired)
+            && !nm_utils_hwaddr_matches(nm_setting_wired_get_mac_address(s_wired),
+                                        -1,
+                                        bootif,
+                                        -1)) {
             connection = reader_create_connection(reader,
                                                   "bootif_connection",
                                                   "BOOTIF Connection",
