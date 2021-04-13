@@ -3833,9 +3833,46 @@ nm_utils_ptrarray_find_binary_search(gconstpointer *  list,
                                      gsize            len,
                                      gconstpointer    needle,
                                      GCompareDataFunc cmpfcn,
-                                     gpointer         user_data,
-                                     gssize *         out_idx_first,
-                                     gssize *         out_idx_last)
+                                     gpointer         user_data)
+{
+    gssize imin, imax, imid;
+    int    cmp;
+
+    g_return_val_if_fail(list || !len, ~((gssize) 0));
+    g_return_val_if_fail(cmpfcn, ~((gssize) 0));
+
+    imin = 0;
+    if (len > 0) {
+        imax = len - 1;
+
+        while (imin <= imax) {
+            imid = imin + (imax - imin) / 2;
+
+            cmp = cmpfcn(list[imid], needle, user_data);
+            if (cmp == 0)
+                return imid;
+
+            if (cmp < 0)
+                imin = imid + 1;
+            else
+                imax = imid - 1;
+        }
+    }
+
+    /* return the inverse of @imin. This is a negative number, but
+     * also is ~imin the position where the value should be inserted. */
+    imin = ~imin;
+    return imin;
+}
+
+gssize
+nm_utils_ptrarray_find_binary_search_range(gconstpointer *  list,
+                                           gsize            len,
+                                           gconstpointer    needle,
+                                           GCompareDataFunc cmpfcn,
+                                           gpointer         user_data,
+                                           gssize *         out_idx_first,
+                                           gssize *         out_idx_last)
 {
     gssize imin, imax, imid, i2min, i2max, i2mid;
     int    cmp;
@@ -4256,11 +4293,9 @@ typedef struct {
     gulong                      cancelled_id;
 } InvokeOnIdleData;
 
-static gboolean
-_nm_utils_invoke_on_idle_cb_idle(gpointer user_data)
+static void
+_nm_utils_invoke_on_idle_complete(InvokeOnIdleData *data)
 {
-    InvokeOnIdleData *data = user_data;
-
     nm_clear_g_signal_handler(data->cancellable, &data->cancelled_id);
 
     data->callback(data->callback_user_data, data->cancellable);
@@ -4268,18 +4303,31 @@ _nm_utils_invoke_on_idle_cb_idle(gpointer user_data)
     nm_g_object_unref(data->cancellable);
     g_source_destroy(data->source);
     nm_g_slice_free(data);
+}
+
+static gboolean
+_nm_utils_invoke_on_idle_cb_idle(gpointer user_data)
+{
+    _nm_utils_invoke_on_idle_complete(user_data);
     return G_SOURCE_REMOVE;
 }
 
 static void
 _nm_utils_invoke_on_idle_cb_cancelled(GCancellable *cancellable, InvokeOnIdleData *data)
 {
-    /* on cancellation, we invoke the callback synchronously. */
-    nm_clear_g_signal_handler(data->cancellable, &data->cancelled_id);
-    nm_clear_g_source_inst(&data->source);
-    data->callback(data->callback_user_data, data->cancellable);
-    nm_g_object_unref(data->cancellable);
-    nm_g_slice_free(data);
+    if (data->cancelled_id == 0) {
+        /* this can only happen during _nm_utils_invoke_on_idle_start(). Don't do anything,
+         * we still schedule an idle action. */
+        return;
+    }
+
+    /* On cancellation, we invoke the callback synchronously.
+     *
+     * Note that this is not thread-safe, meaning: you can only cancel the cancellable
+     * while not iterating the GMainContext (that has the idle/timeout source attached).
+     * Making this thread safe would be complicated, and it's simply not used by our
+     * callers. */
+    _nm_utils_invoke_on_idle_complete(data);
 }
 
 static void
@@ -4303,23 +4351,17 @@ _nm_utils_invoke_on_idle_start(gboolean                    use_timeout,
     };
 
     if (cancellable) {
-        if (g_cancellable_is_cancelled(cancellable)) {
-            /* the cancellable is already cancelled. We ignore the timeout
-             * and always schedule an idle action. */
+        gulong cancelled_id;
+
+        cancelled_id = g_cancellable_connect(cancellable,
+                                             G_CALLBACK(_nm_utils_invoke_on_idle_cb_cancelled),
+                                             data,
+                                             NULL);
+        if (cancelled_id == 0) {
+            /* the cancellable is already cancelled. We still schedule an idle action. */
             use_timeout = FALSE;
-        } else {
-            /* if we are passed a non-cancelled cancellable, we register to the "cancelled"
-             * signal an invoke the callback synchronously (from the signal handler).
-             *
-             * We don't do that,
-             *  - if the cancellable is already cancelled (because we don't want to invoke
-             *    the callback synchronously from the caller).
-             *  - if we have no cancellable at hand. */
-            data->cancelled_id = g_signal_connect(cancellable,
-                                                  "cancelled",
-                                                  G_CALLBACK(_nm_utils_invoke_on_idle_cb_cancelled),
-                                                  data);
-        }
+        } else
+            data->cancelled_id = cancelled_id;
     }
 
     if (use_timeout) {

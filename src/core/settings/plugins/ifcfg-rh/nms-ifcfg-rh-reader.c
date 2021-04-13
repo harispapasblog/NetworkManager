@@ -4302,7 +4302,7 @@ make_wireless_setting(shvarFile *ifcfg, GError **error)
             bytes = g_bytes_new(value, value_len);
 
         ssid_len = g_bytes_get_size(bytes);
-        if (ssid_len > 32 || ssid_len == 0) {
+        if (ssid_len == 0 || ssid_len > NM_IW_ESSID_MAX_SIZE) {
             g_set_error(error,
                         NM_SETTINGS_ERROR,
                         NM_SETTINGS_ERROR_INVALID_CONNECTION,
@@ -5118,15 +5118,15 @@ make_wired_setting(shvarFile *ifcfg, const char *file, NMSetting8021x **s_8021x,
         for (i = 0; options && options[i]; i++) {
             const char *line = options[i];
             const char *equals;
-            gboolean    valid = FALSE;
 
             equals = strchr(line, '=');
-            if (equals) {
-                ((char *) equals)[0] = '\0';
-                valid                = nm_setting_wired_add_s390_option(s_wired, line, equals + 1);
-            }
-            if (!valid)
-                PARSE_WARNING("invalid s390 OPTION '%s'", line);
+            if (!equals)
+                continue;
+
+            /* Here we don't verify the key/value further. If the file contains invalid keys,
+             * we will later reject the connection as invalid. */
+            ((char *) equals)[0] = '\0';
+            nm_setting_wired_add_s390_option(s_wired, line, equals + 1);
         }
         found = TRUE;
     }

@@ -924,6 +924,11 @@ reader_parse_rd_znet(Reader *reader, char *argument, gboolean net_ifnames)
     subchannels[0] = get_word(&argument, ',');
     subchannels[1] = get_word(&argument, ',');
 
+    /* Without subchannels we can't univocally match
+     * a device. */
+    if (!subchannels[0] || !subchannels[1])
+        return;
+
     if (nm_streq0(nettype, "ctc")) {
         if (net_ifnames == TRUE) {
             prefix = "sl";
@@ -969,17 +974,25 @@ reader_parse_rd_znet(Reader *reader, char *argument, gboolean net_ifnames)
                  NULL);
 
     while ((tmp = get_word(&argument, ',')) != NULL) {
-        char *val;
+        const char *key;
+        char *      val;
 
         val = strchr(tmp, '=');
-        if (val) {
-            gs_free char *key = NULL;
-
-            key    = g_strndup(tmp, val - tmp);
-            val[0] = '\0';
-            val++;
-            nm_setting_wired_add_s390_option(s_wired, key, val);
+        if (!val) {
+            /* an invalid (or empty) entry. Ignore. */
+            continue;
         }
+
+        key    = tmp;
+        val[0] = '\0';
+        val++;
+        if (!_nm_setting_wired_is_valid_s390_option(key)
+            || !_nm_setting_wired_is_valid_s390_option_value(key, val)) {
+            /* Invalid setting. Silently ignore, but also ensure we
+             * didn't already set it. */
+            nm_setting_wired_remove_s390_option(s_wired, key);
+        } else
+            nm_setting_wired_add_s390_option(s_wired, key, val);
     }
 }
 

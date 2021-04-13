@@ -5315,12 +5315,14 @@ endif
 
 man_pages += \
 	man/NetworkManager.8 \
+	man/NetworkManager-dispatcher.8 \
 	man/NetworkManager.conf.5 \
 	man/nm-online.1 \
 	man/nm-initrd-generator.8 \
 	man/nmcli-examples.7 \
 	man/nmcli.1 \
-	man/nmtui.1
+	man/nmtui.1 \
+	$(NULL)
 
 man_pages_autogen += \
 	man/nm-settings-dbus.5 \
@@ -5454,7 +5456,7 @@ plugin_LTLIBRARIES += $(core_plugins)
 TESTS += $(check_programs)
 
 EXTRA_DIST += \
-	CONTRIBUTING \
+	CONTRIBUTING.md \
 	COPYING.LGPL \
 	COPYING.GFDL \
 	\
