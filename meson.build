@@ -56,7 +56,9 @@ nm_pkgstatedir = join_paths(nm_localstatedir, 'lib', nm_name)
 nm_vpndir = join_paths(nm_libdir, nm_name)
 nm_plugindir = join_paths(nm_libdir, nm_name, dist_version)
 
-introspection_extra_cflags = ['-Wno-incompatible-pointer-types-discards-qualifiers']
+introspection_extra_cflags = [
+  '-Wno-incompatible-pointer-types-discards-qualifiers',
+]
 
 libnm_name = 'libnm'
 
@@ -582,6 +584,8 @@ enable_bluez5_dun = get_option('bluez5_dun')
 if enable_bluez5_dun
   bluez5_dep = dependency('bluez', version: '>= 5', required: false)
   assert(bluez5_dep.found(), 'Bluez 5.x development headers are required')
+else
+  bluez5_dep = declare_dependency()
 endif
 config_h.set10('WITH_BLUEZ5_DUN', enable_bluez5_dun)
 

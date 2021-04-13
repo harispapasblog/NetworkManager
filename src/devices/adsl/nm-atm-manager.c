@@ -239,7 +239,7 @@ nm_atm_manager_init(NMAtmManager *self)
 {
     NMAtmManagerPrivate *priv = NM_ATM_MANAGER_GET_PRIVATE(self);
 
-    priv->udev_client = nm_udev_client_new((const char *[]){"atm", NULL}, handle_uevent, self);
+    priv->udev_client = nm_udev_client_new(NM_MAKE_STRV("atm"), handle_uevent, self);
 }
 
 static void
@@ -253,7 +253,7 @@ dispose(GObject *object)
         g_object_weak_unref(G_OBJECT(iter->data), device_destroyed, self);
     nm_clear_pointer(&priv->devices, g_slist_free);
 
-    priv->udev_client = nm_udev_client_unref(priv->udev_client);
+    priv->udev_client = nm_udev_client_destroy(priv->udev_client);
 
     G_OBJECT_CLASS(nm_atm_manager_parent_class)->dispose(object);
 }
