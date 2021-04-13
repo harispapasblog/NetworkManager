@@ -5,7 +5,7 @@
 
 #define NM_GLIB_COMPAT_H_TEST
 
-#include "nm-default.h"
+#include "libnm-core/nm-default-libnm-core.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -57,7 +57,7 @@
 #include "nm-setting-wireless-security.h"
 #include "nm-setting-wpan.h"
 #include "nm-simple-connection.h"
-#include "nm-keyfile/nm-keyfile-internal.h"
+#include "nm-keyfile-internal.h"
 #include "nm-glib-aux/nm-dedup-multi.h"
 #include "nm-base/nm-ethtool-base.h"
 #include "nm-base/nm-ethtool-utils-base.h"
@@ -5486,7 +5486,7 @@ _test_connection_normalize_type_normalizable_type(const char *type,
     if (add_setting_fcn)
         s_base = add_setting_fcn(con);
     else {
-        s_base = NM_SETTING(g_object_new(base_type, NULL));
+        s_base = g_object_new(base_type, NULL);
         nm_connection_add_setting(con, s_base);
     }
 
@@ -9613,6 +9613,11 @@ test_ethtool_offload(void)
     g_assert(d);
     g_assert_cmpint(d->id, ==, NM_ETHTOOL_ID_FEATURE_RXHASH);
     g_assert_cmpstr(d->optname, ==, NM_ETHTOOL_OPTNAME_FEATURE_RXHASH);
+
+    /* these features are NETIF_F_NEVER_CHANGE: */
+    g_assert(!nm_ethtool_data_get_by_optname("feature-netns-local"));
+    g_assert(!nm_ethtool_data_get_by_optname("feature-tx-lockless"));
+    g_assert(!nm_ethtool_data_get_by_optname("feature-vlan-challenged"));
 }
 
 /*****************************************************************************/

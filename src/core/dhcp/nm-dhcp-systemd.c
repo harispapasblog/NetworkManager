@@ -3,7 +3,7 @@
  * Copyright (C) 2014 Red Hat, Inc.
  */
 
-#include "nm-default.h"
+#include "src/core/nm-default-daemon.h"
 
 #include <stdlib.h>
 #include <unistd.h>
@@ -982,8 +982,11 @@ ip6_start(NMDhcpClient *            client,
 
     _LOGT("dhcp-client6: set %p", sd_client);
 
-    if (nm_dhcp_client_get_info_only(client))
-        sd_dhcp6_client_set_information_request(sd_client, 1);
+    if (nm_dhcp_client_get_info_only(client)) {
+        sd_dhcp6_client_set_address_request(sd_client, 0);
+        if (needed_prefixes == 0)
+            sd_dhcp6_client_set_information_request(sd_client, 1);
+    }
 
     r = sd_dhcp6_client_set_iaid(sd_client, nm_dhcp_client_get_iaid(client));
     if (r < 0) {
