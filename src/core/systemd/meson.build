@@ -41,11 +41,10 @@ libnm_systemd_core = static_library(
     src_core_inc,
   ],
   dependencies: [
-    libnm_core_impl_dep,
-    libnm_systemd_shared_dep,
+    libnm_core_public_dep,
+    libnm_systemd_shared_dep_inc,
     glib_dep,
   ],
-  link_with: libc_siphash,
 )
 
 libnm_systemd_core_dep = declare_dependency(
@@ -54,8 +53,10 @@ libnm_systemd_core_dep = declare_dependency(
   ],
   dependencies: [
     glib_dep,
-    libnm_core_impl_dep,
-    libnm_systemd_shared_dep,
   ],
-  link_with: libnm_systemd_core,
+  link_with: [
+    libnm_core_impl,
+    libnm_systemd_shared,
+    libnm_systemd_core,
+  ],
 )
