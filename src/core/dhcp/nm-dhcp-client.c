@@ -21,6 +21,7 @@
 #include "nm-utils.h"
 #include "nm-l3-config-data.h"
 #include "nm-dhcp-utils.h"
+#include "nm-dhcp-options.h"
 #include "platform/nm-platform.h"
 
 #include "nm-dhcp-client-logging.h"
@@ -393,8 +394,7 @@ stop(NMDhcpClient *self, gboolean release)
 void
 nm_dhcp_client_set_state(NMDhcpClient *self, NMDhcpState new_state, NML3ConfigData *l3cd)
 {
-    NMDhcpClientPrivate *priv     = NM_DHCP_CLIENT_GET_PRIVATE(self);
-    gs_free char *       event_id = NULL;
+    NMDhcpClientPrivate *priv = NM_DHCP_CLIENT_GET_PRIVATE(self);
 
     g_return_if_fail(NM_IS_DHCP_CLIENT(self));
 
@@ -444,10 +444,18 @@ nm_dhcp_client_set_state(NMDhcpClient *self, NMDhcpState new_state, NML3ConfigDa
             event_id = nm_dhcp_utils_get_dhcp6_event_id(options);
     }
 
-    _LOGI("state changed %s -> %s%s%s%s",
-          state_to_string(priv->state),
-          state_to_string(new_state),
-          NM_PRINT_FMT_QUOTED(event_id, ", event ID=\"", event_id, "\"", ""));
+    if (_LOGI_ENABLED()) {
+        const char *req_str =
+            NM_IS_IPv4(priv->addr_family)
+                ? nm_dhcp_option_request_string(AF_INET, NM_DHCP_OPTION_DHCP4_NM_IP_ADDRESS)
+                : nm_dhcp_option_request_string(AF_INET6, NM_DHCP_OPTION_DHCP6_NM_IP_ADDRESS);
+        const char *addr = nm_g_hash_table_lookup(options, req_str);
+
+        _LOGI("state changed %s -> %s%s%s%s",
+              state_to_string(priv->state),
+              state_to_string(new_state),
+              NM_PRINT_FMT_QUOTED(addr, ", address=", addr, "", ""));
+    }
 
     priv->state = new_state;
     g_signal_emit(G_OBJECT(self), signals[SIGNAL_STATE_CHANGED], 0, new_state, l3cd);
