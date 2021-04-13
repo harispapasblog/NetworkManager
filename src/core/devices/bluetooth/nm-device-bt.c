@@ -25,7 +25,7 @@
 #include "settings/nm-settings-connection.h"
 #include "nm-utils.h"
 #include "nm-bt-error.h"
-#include "platform/nm-platform.h"
+#include "libnm-platform/nm-platform.h"
 
 #include "devices/wwan/nm-modem-manager.h"
 #include "devices/wwan/nm-modem.h"

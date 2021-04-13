@@ -19,7 +19,7 @@
 #include "nm-l3-config-data.h"
 #include "nm-manager.h"
 #include "settings/nm-settings-connection.h"
-#include "platform/nm-platform.h"
+#include "libnm-platform/nm-platform.h"
 #include "libnm-core-intern/nm-core-internal.h"
 
 #define CALL_TIMEOUT (1000 * 60 * 10) /* 10 minutes for all scripts */

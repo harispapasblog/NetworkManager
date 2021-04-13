@@ -17,7 +17,7 @@
 #include <linux/rtnetlink.h>
 
 #include "nm-proxy-config.h"
-#include "platform/nm-platform.h"
+#include "libnm-platform/nm-platform.h"
 #include "nm-active-connection.h"
 #include "NetworkManagerUtils.h"
 #include "settings/nm-settings-connection.h"

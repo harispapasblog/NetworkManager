@@ -14,7 +14,7 @@
 #include "libnm-core-intern/nm-core-internal.h"
 #include "NetworkManagerUtils.h"
 #include "devices/nm-device-private.h"
-#include "platform/nm-platform.h"
+#include "libnm-platform/nm-platform.h"
 #include "nm-l3-config-data.h"
 
 #define NM_MODEM_BROADBAND_MODEM "modem"

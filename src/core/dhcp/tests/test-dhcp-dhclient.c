@@ -15,7 +15,7 @@
 #include "dhcp/nm-dhcp-dhclient-utils.h"
 #include "dhcp/nm-dhcp-utils.h"
 #include "nm-utils.h"
-#include "platform/nm-platform.h"
+#include "libnm-platform/nm-platform.h"
 
 #include "nm-test-utils-core.h"
 
