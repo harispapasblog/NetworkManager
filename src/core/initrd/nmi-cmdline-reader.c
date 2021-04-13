@@ -147,6 +147,8 @@ reader_create_connection(Reader *                 reader,
                  type_name,
                  NM_SETTING_CONNECTION_MULTI_CONNECT,
                  multi_connect,
+                 NM_SETTING_CONNECTION_AUTOCONNECT_RETRIES,
+                 1,
                  NULL);
 
     if (nm_streq0(type_name, NM_SETTING_INFINIBAND_SETTING_NAME)) {
@@ -408,10 +410,12 @@ reader_parse_ip(Reader *reader, const char *sysfs_dir, char *argument)
     int                            client_ip_family = AF_UNSPEC;
     int                            client_ip_prefix = -1;
     const char *                   dns[2]           = {
-        0,
+        NULL,
+        NULL,
     };
     int dns_addr_family[2] = {
-        0,
+        AF_UNSPEC,
+        AF_UNSPEC,
     };
     int     i;
     GError *error = NULL;
@@ -469,11 +473,15 @@ reader_parse_ip(Reader *reader, const char *sysfs_dir, char *argument)
         tmp                = get_word(&argument, ':');
         dns_addr_family[0] = get_ip_address_family(tmp, FALSE);
         if (dns_addr_family[0] != AF_UNSPEC) {
-            dns[0]             = tmp;
-            dns[1]             = get_word(&argument, ':');
-            dns_addr_family[1] = get_ip_address_family(dns[1], FALSE);
-            if (*argument)
-                _LOGW(LOGD_CORE, "Ignoring extra: '%s'.", argument);
+            dns[0] = tmp;
+            dns[1] = get_word(&argument, ':');
+            if (dns[1]) {
+                dns_addr_family[1] = get_ip_address_family(dns[1], FALSE);
+                if (dns_addr_family[1] == AF_UNSPEC)
+                    _LOGW(LOGD_CORE, "Ignoring invalid DNS server: '%s'.", dns[1]);
+                if (*argument)
+                    _LOGW(LOGD_CORE, "Ignoring extra: '%s'.", argument);
+            }
         } else {
             mtu     = tmp;
             macaddr = argument;
@@ -683,21 +691,8 @@ reader_parse_ip(Reader *reader, const char *sysfs_dir, char *argument)
     for (i = 0; i < 2; i++) {
         if (dns_addr_family[i] == AF_UNSPEC)
             break;
-        if (nm_utils_ipaddr_is_valid(dns_addr_family[i], dns[i])) {
-            switch (dns_addr_family[i]) {
-            case AF_INET:
-                nm_setting_ip_config_add_dns(s_ip4, dns[i]);
-                break;
-            case AF_INET6:
-                nm_setting_ip_config_add_dns(s_ip6, dns[i]);
-                break;
-            default:
-                _LOGW(LOGD_CORE, "Unknown address family: %s", dns[i]);
-                break;
-            }
-        } else {
-            _LOGW(LOGD_CORE, "Invalid name server: %s", dns[i]);
-        }
+        nm_assert(nm_utils_ipaddr_is_valid(dns_addr_family[i], dns[i]));
+        nm_setting_ip_config_add_dns(NM_IS_IPv4(dns_addr_family[i]) ? s_ip4 : s_ip6, dns[i]);
     }
 
     if (mtu && *mtu)
@@ -1065,6 +1060,8 @@ nmi_cmdline_reader_parse(const char *       sysfs_dir,
     gs_unref_ptrarray GPtrArray *routes      = NULL;
     gs_unref_ptrarray GPtrArray *znets       = NULL;
     int                          i;
+    guint64                      dhcp_timeout   = 90;
+    guint64                      dhcp_num_tries = 1;
 
     reader = reader_new();
 
@@ -1082,7 +1079,15 @@ nmi_cmdline_reader_parse(const char *       sysfs_dir,
         else if (nm_streq(tag, "rd.peerdns"))
             reader->ignore_auto_dns = !_nm_utils_ascii_str_to_bool(argument, TRUE);
         else if (nm_streq(tag, "rd.net.timeout.dhcp")) {
-            reader->dhcp_timeout = _nm_utils_ascii_str_to_int64(argument, 10, 0, G_MAXINT32, 0);
+            if (nm_streq0(argument, "infinity")) {
+                dhcp_timeout = G_MAXINT32;
+            } else {
+                dhcp_timeout =
+                    _nm_utils_ascii_str_to_int64(argument, 10, 1, G_MAXINT32, dhcp_timeout);
+            }
+        } else if (nm_streq(tag, "rd.net.dhcp.retry")) {
+            dhcp_num_tries =
+                _nm_utils_ascii_str_to_int64(argument, 10, 1, G_MAXINT32, dhcp_num_tries);
         } else if (nm_streq(tag, "rd.net.dhcp.vendor-class")) {
             if (nm_utils_validate_dhcp4_vendor_class_id(argument, NULL))
                 nm_utils_strdup_reset(&reader->dhcp4_vci, argument);
@@ -1091,6 +1096,8 @@ nmi_cmdline_reader_parse(const char *       sysfs_dir,
                 _nm_utils_ascii_str_to_int64(argument, 10, 0, G_MAXINT32, 0);
         }
     }
+
+    reader->dhcp_timeout = NM_CLAMP(dhcp_timeout * dhcp_num_tries, 1, G_MAXINT32);
 
     for (i = 0; argv[i]; i++) {
         gs_free char *argument_clone = NULL;

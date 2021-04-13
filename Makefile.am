@@ -1649,6 +1649,9 @@ DISTCLEANFILES += \
 	libnm/libnm.pc
 
 EXTRA_DIST += \
+	libnm/nm-enum-types.c.template \
+	libnm/nm-enum-types.h.template \
+	\
 	libnm/libnm.pc.in \
 	libnm/libnm.ver
 
@@ -1727,6 +1730,9 @@ libnm/nm-settings-docs-gir.xml: tools/generate-docs-nm-settings-docs-gir.py libn
 
 man/nm-settings-docs-nmcli.xml: clients/cli/generate-docs-nm-settings-nmcli.xml libnm/nm-property-infos-nmcli.xml libnm/nm-settings-docs-gir.xml tools/generate-docs-nm-settings-docs-merge.py man/common.ent
 	$(AM_V_GEN) "$(PYTHON)" $(srcdir)/tools/generate-docs-nm-settings-docs-merge.py --only-from-first $@ $(wordlist 1,3,$^)
+
+clients/common/settings-docs-input.xml: libnm/nm-property-infos-nmcli.xml libnm/nm-settings-docs-gir.xml tools/generate-docs-nm-settings-docs-merge.py
+	$(AM_V_GEN) "$(PYTHON)" $(srcdir)/tools/generate-docs-nm-settings-docs-merge.py $@ $(wordlist 1,2,$^)
 
 man/nm-settings-docs-%.xml: libnm/nm-property-infos-%.xml libnm/nm-settings-docs-gir.xml tools/generate-docs-nm-settings-docs-merge.py man/common.ent
 	$(AM_V_GEN) "$(PYTHON)" $(srcdir)/tools/generate-docs-nm-settings-docs-merge.py $@ $(wordlist 1,2,$^)
@@ -4539,7 +4545,7 @@ $(clients_common_libnmc_base_la_OBJECTS): clients/common/.dirstamp
 
 clients_common_settings_doc_h = clients/common/settings-docs.h
 if BUILD_DOCS
-$(clients_common_settings_doc_h): clients/common/settings-docs.xsl libnm/nm-settings-docs-gir.xml clients/common/.dirstamp
+$(clients_common_settings_doc_h): clients/common/settings-docs.xsl clients/common/settings-docs-input.xml clients/common/.dirstamp
 	$(AM_V_GEN) $(XSLTPROC) --output $@ $< $(word 2,$^)
 DISTCLEANFILES += $(clients_common_settings_doc_h)
 check-local-settings-docs: $(clients_common_settings_doc_h)
@@ -5459,6 +5465,8 @@ CLEANFILES += \
 	cscope.po.out \
 	\
 	$(NULL)
+
+CLEANFILES += clients/common/settings-docs-input.xml
 
 ###############################################################################
 

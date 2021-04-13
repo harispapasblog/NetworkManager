@@ -158,24 +158,25 @@ _netns_stack_get_impl(void)
     g_array_set_clear_func(s, _netns_stack_clear_cb);
     _netns_stack = s;
 
-    /* at the bottom of the stack we must try to create a netns instance
-     * that we never pop. It's the base to which we need to return. */
-    netns = _netns_new(&error);
-    if (!netns) {
-        _LOGE(NULL, "failed to create initial netns: %s", error->message);
-        return s;
-    }
-
-    /* we leak this instance inside the stack. */
-    _stack_push(s, netns, _CLONE_NS_ALL);
-
-    /* finally, register a destructor function to cleanup the array. If we fail
+    /* register a destructor function to cleanup the array. If we fail
      * to do so, we will leak NMPNetns instances (and their file descriptor) when the
      * thread exits. */
     if (pthread_key_create(&key, (void (*)(void *)) g_array_unref) != 0)
         _LOGE(NULL, "failure to initialize thread-local storage");
     else if (pthread_setspecific(key, s) != 0)
         _LOGE(NULL, "failure to set thread-local storage");
+
+    /* at the bottom of the stack we must try to create a netns instance
+     * that we never pop. It's the base to which we need to return. */
+    netns = _netns_new(&error);
+
+    if (!netns) {
+        _LOGD(NULL, "failed to create initial netns: %s", error->message);
+        return s;
+    }
+
+    /* we leak this instance inside the stack. */
+    _stack_push(s, netns, _CLONE_NS_ALL);
 
     return s;
 }
