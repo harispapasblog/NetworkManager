@@ -771,6 +771,7 @@ $(src_libnm_client_aux_extern_libnm_client_aux_extern_la_OBJECTS): $(src_libnm_c
 EXTRA_DIST += \
 	src/libnm-client-aux-extern/README.md \
 	src/libnm-client-aux-extern/meson.build \
+	src/libnm-client-aux-extern/tests/meson.build \
 	$(NULL)
 
 ###############################################################################
@@ -1720,6 +1721,8 @@ libnminclude_HEADERS += \
 nodist_libnminclude_HEADERS += \
 	$(src_libnm_client_public_mkenums_h)
 
+EXTRA_DIST += src/libnm-client-public/meson.build
+
 ###############################################################################
 
 noinst_LTLIBRARIES += src/libnm-client-impl/libnm-client-impl.la
@@ -2084,6 +2087,7 @@ libsystemd_cppflags = \
 	-I$(srcdir)/src/libnm-systemd-shared/ \
 	-I$(srcdir)/src/libnm-systemd-shared/sd-adapt-shared \
 	-I$(srcdir)/src/libnm-systemd-shared/src/basic \
+	-I$(srcdir)/src/libnm-systemd-shared/src/fundamental \
 	-I$(srcdir)/src/libnm-systemd-shared/src/shared \
 	$(LIBSYSTEMD_NM_CFLAGS) \
 	$(GLIB_CFLAGS) \
@@ -2120,13 +2124,16 @@ src_libnm_systemd_shared_libnm_systemd_shared_la_SOURCES = \
 	src/libnm-systemd-shared/sd-adapt-shared/missing_magic.h \
 	src/libnm-systemd-shared/sd-adapt-shared/missing_network.h \
 	src/libnm-systemd-shared/sd-adapt-shared/missing_sched.h \
+	src/libnm-systemd-shared/sd-adapt-shared/missing_syscall_def.h \
 	src/libnm-systemd-shared/sd-adapt-shared/missing_timerfd.h \
 	src/libnm-systemd-shared/sd-adapt-shared/mkdir.h \
 	src/libnm-systemd-shared/sd-adapt-shared/namespace-util.h \
 	src/libnm-systemd-shared/sd-adapt-shared/nm-sd-adapt-shared.h \
 	src/libnm-systemd-shared/sd-adapt-shared/nulstr-util.h \
+	src/libnm-systemd-shared/sd-adapt-shared/os-util.h \
 	src/libnm-systemd-shared/sd-adapt-shared/raw-clone.h \
 	src/libnm-systemd-shared/sd-adapt-shared/rlimit-util.h \
+	src/libnm-systemd-shared/sd-adapt-shared/sysctl-util.h \
 	src/libnm-systemd-shared/sd-adapt-shared/terminal-util.h \
 	src/libnm-systemd-shared/sd-adapt-shared/unaligned.h \
 	src/libnm-systemd-shared/sd-adapt-shared/user-util.h \
@@ -2135,6 +2142,7 @@ src_libnm_systemd_shared_libnm_systemd_shared_la_SOURCES = \
 	src/libnm-systemd-shared/src/basic/alloc-util.h \
 	src/libnm-systemd-shared/src/basic/async.h \
 	src/libnm-systemd-shared/src/basic/cgroup-util.h \
+	src/libnm-systemd-shared/src/basic/dns-def.h \
 	src/libnm-systemd-shared/src/basic/env-file.c \
 	src/libnm-systemd-shared/src/basic/env-file.h \
 	src/libnm-systemd-shared/src/basic/env-util.c \
@@ -2179,6 +2187,8 @@ src_libnm_systemd_shared_libnm_systemd_shared_la_SOURCES = \
 	src/libnm-systemd-shared/src/basic/missing_stat.h \
 	src/libnm-systemd-shared/src/basic/missing_syscall.h \
 	src/libnm-systemd-shared/src/basic/missing_type.h \
+	src/libnm-systemd-shared/src/basic/ordered-set.c \
+	src/libnm-systemd-shared/src/basic/ordered-set.h \
 	src/libnm-systemd-shared/src/basic/parse-util.c \
 	src/libnm-systemd-shared/src/basic/parse-util.h \
 	src/libnm-systemd-shared/src/basic/path-util.c \
@@ -2219,6 +2229,10 @@ src_libnm_systemd_shared_libnm_systemd_shared_la_SOURCES = \
 	src/libnm-systemd-shared/src/basic/utf8.h \
 	src/libnm-systemd-shared/src/basic/util.c \
 	src/libnm-systemd-shared/src/basic/util.h \
+	src/libnm-systemd-shared/src/fundamental/macro-fundamental.h \
+	src/libnm-systemd-shared/src/fundamental/string-util-fundamental.c \
+	src/libnm-systemd-shared/src/fundamental/string-util-fundamental.h \
+	src/libnm-systemd-shared/src/fundamental/type.h \
 	src/libnm-systemd-shared/src/shared/dns-domain.c \
 	src/libnm-systemd-shared/src/shared/dns-domain.h \
 	src/libnm-systemd-shared/src/shared/log-link.h \
@@ -2230,6 +2244,8 @@ src_libnm_systemd_shared_libnm_systemd_shared_la_LIBADD = \
 	$(GLIB_LIBS) \
 	$(CODE_COVERAGE_LDFLAGS) \
 	$(NULL)
+
+EXTRA_DIST += src/libnm-systemd-shared/meson.build
 
 ###############################################################################
 
@@ -2322,8 +2338,7 @@ src_core_libnm_systemd_core_la_LIBADD = \
 	$(NULL)
 $(src_core_libnm_systemd_core_la_OBJECTS): $(src_libnm_core_public_mkenums_h)
 
-EXTRA_DIST += \
-	src/core/systemd/meson.build
+EXTRA_DIST += src/core/systemd/meson.build
 
 ###############################################################################
 
@@ -3424,6 +3439,8 @@ EXTRA_DIST += \
 	src/core/settings/plugins/ifcfg-rh/tests/network-scripts/ifcfg-test-vlan-reorder-hdr-1 \
 	src/core/settings/plugins/ifcfg-rh/tests/network-scripts/ifcfg-test-vlan-reorder-hdr-2 \
 	src/core/settings/plugins/ifcfg-rh/tests/network-scripts/ifcfg-test-vlan-trailing-spaces \
+	src/core/settings/plugins/ifcfg-rh/tests/network-scripts/ifcfg-test-vlan-vlanid-use \
+	src/core/settings/plugins/ifcfg-rh/tests/network-scripts/ifcfg-test-vlan-vlanid-use.cexpected \
 	src/core/settings/plugins/ifcfg-rh/tests/network-scripts/ifcfg-test-wifi-band-a \
 	src/core/settings/plugins/ifcfg-rh/tests/network-scripts/ifcfg-test-wifi-band-a-channel-mismatch \
 	src/core/settings/plugins/ifcfg-rh/tests/network-scripts/ifcfg-test-wifi-band-bg-channel-mismatch \
@@ -3453,9 +3470,9 @@ EXTRA_DIST += \
 	src/core/settings/plugins/ifcfg-rh/tests/network-scripts/ifcfg-test-wifi-wep-eap-ttls-chap \
 	src/core/settings/plugins/ifcfg-rh/tests/network-scripts/ifcfg-test-wifi-wep-no-keys \
 	src/core/settings/plugins/ifcfg-rh/tests/network-scripts/ifcfg-test-wifi-wep-passphrase \
+	src/core/settings/plugins/ifcfg-rh/tests/network-scripts/ifcfg-test-wifi-wpa-eap-suite-b-192-tls \
 	src/core/settings/plugins/ifcfg-rh/tests/network-scripts/ifcfg-test-wifi-wpa-eap-tls \
 	src/core/settings/plugins/ifcfg-rh/tests/network-scripts/ifcfg-test-wifi-wpa-eap-ttls-tls \
-	src/core/settings/plugins/ifcfg-rh/tests/network-scripts/ifcfg-test-wifi-wpa-eap-suite-b-192-tls \
 	src/core/settings/plugins/ifcfg-rh/tests/network-scripts/ifcfg-test-wifi-wpa-psk \
 	src/core/settings/plugins/ifcfg-rh/tests/network-scripts/ifcfg-test-wifi-wpa-psk-2 \
 	src/core/settings/plugins/ifcfg-rh/tests/network-scripts/ifcfg-test-wifi-wpa-psk-adhoc \
@@ -4644,6 +4661,8 @@ src_libnmc_base_libnmc_base_la_LIBADD = \
 
 $(src_libnmc_base_libnmc_base_la_OBJECTS): $(src_libnm_core_public_mkenums_h)
 $(src_libnmc_base_libnmc_base_la_OBJECTS): $(src_libnm_client_public_mkenums_h)
+
+EXTRA_DIST += src/libnmc-base/meson.build
 
 ###############################################################################
 # src/libnmc-setting
