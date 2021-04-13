@@ -17,8 +17,8 @@
 #include "nm-dnsmasq-utils.h"
 #include "nm-utils.h"
 #include "NetworkManagerUtils.h"
-#include "nm-core-internal.h"
 #include "nm-l3-config-data.h"
+#include "libnm-core-intern/nm-core-internal.h"
 
 #define CONFDIR NMCONFDIR "/dnsmasq-shared.d"
 

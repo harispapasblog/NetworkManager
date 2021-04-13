@@ -20,7 +20,7 @@
 #include "NetworkManagerUtils.h"
 #include "platform/nm-platform.h"
 #include "nm-dhcp-client-logging.h"
-#include "nm-core-internal.h"
+#include "libnm-core-intern/nm-core-internal.h"
 
 /*****************************************************************************/
 

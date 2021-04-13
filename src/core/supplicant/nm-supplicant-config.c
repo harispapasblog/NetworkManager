@@ -11,10 +11,10 @@
 #include <stdlib.h>
 
 #include "nm-glib-aux/nm-str-buf.h"
-#include "nm-core-internal.h"
+#include "libnm-core-intern/nm-core-internal.h"
 #include "nm-supplicant-settings-verify.h"
 #include "nm-setting.h"
-#include "nm-libnm-core-intern/nm-auth-subject.h"
+#include "libnm-core-aux-intern/nm-auth-subject.h"
 #include "NetworkManagerUtils.h"
 #include "nm-utils.h"
 #include "nm-setting-ip4-config.h"
@@ -815,7 +815,7 @@ nm_supplicant_config_add_setting_wireless_security(NMSupplicantConfig *         
     nm_auto_free_gstring GString *key_mgmt_conf = NULL;
     const char *                  key_mgmt, *auth_alg;
     const char *                  psk;
-    gboolean                      set_pmf;
+    gboolean                      set_pmf, wps_disabled;
 
     g_return_val_if_fail(NM_IS_SUPPLICANT_CONFIG(self), FALSE);
     g_return_val_if_fail(setting != NULL, FALSE);
@@ -841,6 +841,11 @@ nm_supplicant_config_add_setting_wireless_security(NMSupplicantConfig *         
             g_string_append(key_mgmt_conf, " wpa-psk-sha256");
         if (_get_capability(priv, NM_SUPPL_CAP_TYPE_FT))
             g_string_append(key_mgmt_conf, " ft-psk");
+        if (_get_capability(priv, NM_SUPPL_CAP_TYPE_SAE)) {
+            g_string_append(key_mgmt_conf, " sae");
+            if (_get_capability(priv, NM_SUPPL_CAP_TYPE_FT))
+                g_string_append(key_mgmt_conf, " ft-sae");
+        }
     } else if (nm_streq(key_mgmt, "wpa-eap")) {
         if (_get_capability(priv, NM_SUPPL_CAP_TYPE_PMF)) {
             g_string_append(key_mgmt_conf, " wpa-eap-sha256");
@@ -1100,6 +1105,13 @@ nm_supplicant_config_add_setting_wireless_security(NMSupplicantConfig *         
                                                  error))
                 return FALSE;
         }
+    }
+
+    wps_disabled = (nm_setting_wireless_security_get_wps_method(setting)
+                    == NM_SETTING_WIRELESS_SECURITY_WPS_METHOD_DISABLED);
+    if (wps_disabled) {
+        if (!nm_supplicant_config_add_option(self, "wps_disabled", "1", 1, NULL, error))
+            return FALSE;
     }
 
     return TRUE;

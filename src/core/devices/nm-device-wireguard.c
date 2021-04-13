@@ -11,8 +11,8 @@
 #include <linux/fib_rules.h>
 
 #include "nm-setting-wireguard.h"
-#include "nm-core-internal.h"
 #include "nm-l3-config-data.h"
+#include "libnm-core-intern/nm-core-internal.h"
 #include "nm-glib-aux/nm-secret-utils.h"
 #include "nm-device-private.h"
 #include "platform/nm-platform.h"

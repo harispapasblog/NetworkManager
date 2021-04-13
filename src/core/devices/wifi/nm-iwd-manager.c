@@ -9,7 +9,7 @@
 
 #include <net/if.h>
 
-#include "nm-core-internal.h"
+#include "libnm-core-intern/nm-core-internal.h"
 #include "nm-manager.h"
 #include "nm-device-iwd.h"
 #include "nm-wifi-utils.h"
@@ -1115,10 +1115,11 @@ device_removed(NMManager *manager, NMDevice *device, gpointer user_data)
 static int
 object_compare_interfaces(gconstpointer a, gconstpointer b)
 {
-    static const char *interface_order[] = {
+    static const char *const interface_order[] = {
         NM_IWD_KNOWN_NETWORK_INTERFACE,
         NM_IWD_NETWORK_INTERFACE,
         NM_IWD_DEVICE_INTERFACE,
+        NULL,
     };
     int   rank_a = G_N_ELEMENTS(interface_order);
     int   rank_b = G_N_ELEMENTS(interface_order);
