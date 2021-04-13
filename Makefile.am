@@ -117,6 +117,8 @@ src/libnm-core-impl/.dirstamp:                      config-extra.h
 src/libnm-base/.dirstamp:                           config-extra.h
 src/libnm-glib-aux/.dirstamp:                       config-extra.h
 src/libnm-glib-aux/tests/.dirstamp:                 config-extra.h
+src/libnm-log-core/.dirstamp:                       config-extra.h
+src/libnm-log-null/.dirstamp:                       config-extra.h
 src/libnm-platform/.dirstamp:                       config-extra.h
 src/libnm-platform/tests/.dirstamp:                 config-extra.h
 src/libnm-platform/wifi/.dirstamp:                  config-extra.h
@@ -497,6 +499,8 @@ src_libnm_base_libnm_base_la_SOURCES = \
 	src/libnm-base/nm-ethtool-base.c \
 	src/libnm-base/nm-ethtool-base.h \
 	src/libnm-base/nm-ethtool-utils-base.h \
+	src/libnm-base/nm-net-aux.c \
+	src/libnm-base/nm-net-aux.h \
 	$(NULL)
 
 src_libnm_base_libnm_base_la_LDFLAGS = \

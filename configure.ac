@@ -1177,7 +1177,7 @@ if test -n "$sanitizers"; then
 fi
 
 AC_MSG_CHECKING([CC support C11 _Generic()])
-AC_COMPILE_IFELSE([AC_LANG_SOURCE([[int foo(void); int foo() { int a = 0; int b = _Generic (a, int: 4); return b + a; }]],
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([[int foo(void); static const char *const buf[1] = { "a" }; int foo() { int a = 0; int b = _Generic (a, int: 4) + _Generic(buf, const char *const*: 5); return b + a; }]],
                                   [[foo();]])],
                   [cc_support_generic=1],
                   [cc_support_generic=0])
@@ -1229,9 +1229,13 @@ else
 fi
 AC_SUBST(NM_LOG_COMPILER, 'LOG_COMPILER = "$(top_srcdir)/tools/run-nm-test.sh" --called-from-make "$(abs_top_builddir)" "$(LIBTOOL)" "$(with_valgrind)" "'"$with_valgrind_suppressions"'" --launch-dbus=auto')
 
-AM_PATH_PYTHON([3], [], [PYTHON=])
-if test -z "$PYTHON"; then
-	AM_PATH_PYTHON([], [], [PYTHON=python])
+if test -n "$PYTHON" ; then
+    AM_PATH_PYTHON([], [], [])
+else
+    AM_PATH_PYTHON([3], [], [PYTHON=])
+    if test -z "$PYTHON"; then
+        AM_PATH_PYTHON([], [], [])
+    fi
 fi
 AC_SUBST(PYTHON, [$PYTHON])
 AC_DEFINE_UNQUOTED(TEST_NM_PYTHON, "$PYTHON", [Define python path for test binary])
